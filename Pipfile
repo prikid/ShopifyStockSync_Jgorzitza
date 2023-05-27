@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 python-decouple = "*"
 psycopg2 = "*"
+djangorestframework = "*"
+drf-spectacular = "*"
 
 [dev-packages]
 

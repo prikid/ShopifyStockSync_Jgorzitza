@@ -1,8 +1,11 @@
 from django.contrib import admin
 
-from products_sync.models import StockDataSources
+from products_sync.models import StockDataSource
 
 
-@admin.register(StockDataSources)
+@admin.register(StockDataSource)
 class StockDataSourcesAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("name", "active")
+    list_editable = ("active",)
+    ordering = ['id']
+

@@ -1,30 +1,107 @@
 <template>
-  <nav>
-    <router-link to="/">Home</router-link> |
-    <router-link to="/about">About</router-link>
-  </nav>
-  <router-view/>
+  <div id="app">
+    <b-navbar>
+      <template #brand>
+        <b-navbar-item tag="router-link" :to="{ path: '/' }">
+          <img
+              src="https://cdn.shopify.com/s/files/1/0289/7212/2147/files/OneguylogotransparentBG_ca79c89e-b8f4-42aa-bafb-563233510a38.png"
+              alt="OneGuyGarage products and orders sync"
+          >
+        </b-navbar-item>
+      </template>
+      <template #start>
+        <!--        <b-navbar-item href="/">Home</b-navbar-item>-->
+      </template>
+
+      <template #end>
+        <b-navbar-item tag="div">
+
+          <b-button v-if="!$store.state.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>
+          <b-button v-else @click="logout">Logout</b-button>
+        </b-navbar-item>
+      </template>
+    </b-navbar>
+
+    <b-modal
+        v-model="isLoginModalActive"
+        has-modal-card
+        trap-focus
+        :destroy-on-hide="false"
+        aria-role="dialog"
+        aria-label="Login"
+        close-button-aria-label="Close"
+        aria-modal
+    >
+      <template #default="props">
+        <login-form
+            :is-modal-mode="true"
+            @close="isLoginModalActive=false"
+            @authenticated="on_authenticated"
+            @authentication_error="on_authentication_error"
+        />
+      </template>
+    </b-modal>
+
+    <section>
+      <router-view/>
+    </section>
+
+    <footer class="footer">
+
+    </footer>
+  </div>
 </template>
 
-<style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-}
+<script>
+import LoginForm from "@/components/LoginForm.vue";
+import axios from 'axios'
 
-nav {
-  padding: 30px;
+export default {
+  name: 'Home',
+  components: {
+    LoginForm
+  },
 
-  a {
-    font-weight: bold;
-    color: #2c3e50;
+  beforeCreate() {
+    this.$store.commit('initialize');
 
-    &.router-link-exact-active {
-      color: #42b983;
+    const token = this.$store.state.token;
+    axios.defaults.baseURL = process.env.VUE_APP_BACKEND_HOST
+    axios.defaults.headers.common['Authorization'] = token ? "Token " + token : '';
+  },
+
+  data() {
+    return {
+      isLoginModalActive: false,
+    }
+  },
+
+  methods: {
+    on_authenticated() {
+      this.isLoginModalActive = false
+      const toPath = this.$route.query.to || '/dashboard';
+      this.$router.push(toPath);
+    },
+
+    on_authentication_error(e) {
+      console.log(e);
+      this.$buefy.toast.open({
+        duration: 5000,
+        message: e.message,
+        position: 'is-bottom',
+        type: 'is-danger'
+      })
+    },
+
+    logout() {
+      this.$store.commit('removeToken')
+      axios.defaults.headers.common['Authorization'] = ''
+      this.$router.push("/", () => {})
     }
   }
 }
+</script>
+
+
+<style lang="scss">
 </style>

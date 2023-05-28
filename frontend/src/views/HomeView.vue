@@ -1,18 +1,17 @@
 <template>
-  <div class="home">
-    <img alt="Vue logo" src="../assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
-  </div>
+  <section class="hero">
+    <div class="hero-body has-text-centered">
+      <router-link to="/dashboard">
+         <img alt="OneGuyGarageLogo" width="400"
+             src="https://cdn.shopify.com/s/files/1/0289/7212/2147/files/OneguylogotransparentBG_ca79c89e-b8f4-42aa-bafb-563233510a38.png">
+      </router-link>
+
+      <p class="title">
+        SYNC
+      </p>
+      <p class="subtitle">
+        Products and orders synchronization system
+      </p>
+    </div>
+  </section>
 </template>
-
-<script>
-// @ is an alias to /src
-import HelloWorld from '@/components/HelloWorld.vue'
-
-export default {
-  name: 'HomeView',
-  components: {
-    HelloWorld
-  }
-}
-</script>

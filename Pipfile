@@ -5,12 +5,14 @@ name = "pypi"
 
 [packages]
 python-decouple = "*"
-psycopg2 = "*"
+psycopg2-binary ="*"
 djangorestframework = "*"
 drf-spectacular = "*"
 django-cors-headers = "*"
+gunicorn = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.11"
+python_version = "~3.10"
+psycopg2 = "*"

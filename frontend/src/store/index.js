@@ -1,35 +1,34 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
+import axios from 'axios'
 
 Vue.use(Vuex)
 
 export default new Vuex.Store({
     state: {
-        isAuthenticated: false,
         token: ''
     },
-    getters: {},
+    getters: {
+        isAuthenticated: state => Boolean(state.token)
+    },
     mutations: {
-        initialize(state) {
-            const token = localStorage.getItem('token')
-            if (token) {
-                state.token = token
-                state.isAuthenticated = true
-            } else {
-                state.token = ''
-                state.isAuthenticated = false
-            }
-        },
-
         setToken(state, token) {
             state.token = token;
-            state.isAuthenticated = true;
+            localStorage.setItem('token', token);
+            axios.defaults.headers.common['Authorization'] = "Token " + token
         },
         removeToken(state) {
             state.token = '';
-            state.isAuthenticated = false;
+            localStorage.setItem('token', '');
+            axios.defaults.headers.common['Authorization'] = ''
         }
     },
-    actions: {},
+    actions: {
+        initialize(context) {
+            const token = localStorage.getItem('token')
+            if (token)
+                context.commit('setToken', token);
+        }
+    },
     modules: {}
 })

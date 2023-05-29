@@ -16,7 +16,7 @@
       <template #end>
         <b-navbar-item tag="div">
 
-          <b-button v-if="!$store.state.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>
+          <b-button v-if="!$store.getters.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>
           <b-button v-else @click="logout">Logout</b-button>
         </b-navbar-item>
       </template>
@@ -55,19 +55,12 @@
 <script>
 import LoginForm from "@/components/LoginForm.vue";
 import axios from 'axios'
+import store from "@/store";
 
 export default {
   name: 'Home',
   components: {
     LoginForm
-  },
-
-  beforeCreate() {
-    this.$store.commit('initialize');
-
-    const token = this.$store.state.token;
-    axios.defaults.baseURL = process.env.VUE_APP_BACKEND_HOST
-    axios.defaults.headers.common['Authorization'] = token ? "Token " + token : '';
   },
 
   data() {
@@ -95,7 +88,6 @@ export default {
 
     logout() {
       this.$store.commit('removeToken')
-      axios.defaults.headers.common['Authorization'] = ''
       this.$router.push("/", () => {})
     }
   }

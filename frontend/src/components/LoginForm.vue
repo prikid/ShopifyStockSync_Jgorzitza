@@ -49,10 +49,7 @@ export default {
 
       await axios.post("/api/user/token/", formData)
           .then(response => {
-            const token = response.data.token;
-            this.$store.commit('setToken', token);
-            axios.defaults.headers.common['Authorization'] = 'Token ' + token;
-            localStorage.setItem('token', token);
+            this.$store.commit('setToken', response.data.token);
             this.$emit('authenticated')
           })
           .catch(e => {

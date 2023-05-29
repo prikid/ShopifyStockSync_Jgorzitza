@@ -6,11 +6,17 @@ import Buefy from 'buefy'
 import 'buefy/dist/buefy.css'
 import axios from 'axios'
 
+axios.defaults.baseURL = process.env.VUE_APP_BACKEND_HOST
+
 Vue.config.productionTip = false
 Vue.use(Buefy)
 
+store.dispatch("initialize")
+
 new Vue({
-    router,
     store,
-    render: h => h(App)
+    router,
+    render: h => h(App),
 }).$mount('#app')
+
+

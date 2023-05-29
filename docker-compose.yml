@@ -27,7 +27,7 @@ services:
     env_file:
       - .env
     ports:
-      - '8080:8080'
+      - '${HOST_WEB_PORT:-8080}:8080'
     volumes:
       - ./frontend:/app/frontend
     depends_on:

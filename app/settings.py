@@ -82,7 +82,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'app.urls'
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "static"
 
 TEMPLATES = [

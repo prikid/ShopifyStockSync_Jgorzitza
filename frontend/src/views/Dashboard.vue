@@ -20,7 +20,12 @@
       </b-table-column>
 
       <b-table-column v-slot="props">
-        <b-button @click="syncNow(props.row)" label="Sync now" type="is-primary" class="is-pulled-right"/>
+        <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary" class="is-pulled-right"/>
+      </b-table-column>
+
+      <b-table-column v-slot="props">
+        <b-button @click="syncNow(props.row)" label="Sync now" type="is-primary" :disabled="true"
+                  class="is-pulled-right"/>
       </b-table-column>
 
     </b-table>
@@ -50,8 +55,21 @@ export default {
       alert(row.id)
     },
 
-    syncNow(row) {
-      alert(row.id)
+    syncNow(row, dry = false) {
+      this.loading = true
+      const endpoint = dry ? 'dryrun' : 'run'
+
+      axios.post(`/api/sources/${row.id}/${endpoint}/`)
+          .then(({data}) => {
+             this.$buefy.dialog.alert({
+                    title: 'Sync process logs',
+                    message: data['logs'].join('\n'),
+                    confirmText: 'Ok'
+                })
+          })
+          .finally(() => {
+            this.loading = false
+          })
     },
 
     async getDataSources() {

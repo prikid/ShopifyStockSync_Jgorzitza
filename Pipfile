@@ -10,9 +10,10 @@ djangorestframework = "*"
 drf-spectacular = "*"
 django-cors-headers = "*"
 gunicorn = "*"
+shopifyapi = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "~3.10"
+python_version = "~3.11"
 psycopg2 = "*"

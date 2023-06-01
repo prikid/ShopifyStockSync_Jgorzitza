@@ -1,6 +1,5 @@
-from . import BaseProductsSyncProcessor
+from .base_products_sync_processor import BaseProductsSyncProcessor
 
 
 class CustomCSVProcessor(BaseProductsSyncProcessor):
-    def run_sync(self):
-        pass
+    pass

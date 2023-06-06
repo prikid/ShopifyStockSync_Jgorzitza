@@ -36,12 +36,12 @@ services:
       - 8000
     ports:
       - '8000:8000'
-    command: ./wait-for-it.sh db:5433 -- run.sh
+    command: ./run.sh
 
 
   celery:
     <<: *backend
-    command: ./wait-for-it.sh db:5433 --  python -m celery -A app worker --loglevel=info
+    command: python -m celery -A app worker --loglevel=info
 
   #  celery-beat:
   #    build: .

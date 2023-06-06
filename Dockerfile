@@ -10,8 +10,6 @@ RUN apk --update add --no-cache libstdc++ libpq\
     && /py/bin/pip install -r /tmp/requirements.txt
 
 COPY . /app
-WORKDIR /app
-ENV PATH="/py/bin:$PATH"
 
 RUN rm -rf /tmp \
     && adduser \
@@ -20,11 +18,15 @@ RUN rm -rf /tmp \
       app-user \
     && mkdir /app/static \
     && chown -R app-user:app-user /app/static \
-    && chmod -R 755 /app/static
+    && chmod -R 755 /app/static \
+    && chown -R app-user:app-user /app \
+    && chmod -R 755 /app
 ##    && chmod -R +x /scripts
 
 USER app-user
 
+WORKDIR /app
+ENV PATH="/py/bin:$PATH"
 
 #CMD python manage.py runserver 0.0.0.0:8000
 CMD "./run.sh"

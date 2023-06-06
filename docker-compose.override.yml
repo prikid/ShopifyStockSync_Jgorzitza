@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile_dev
     ports:
       - 8080:8080
+    volumes:
+      - ./frontend:/app
 
   backend:
     restart: no
@@ -15,6 +17,8 @@ services:
       python manage.py runserver 0.0.0.0:8000"
     depends_on:
       - redis
+    volumes:
+      - .:/app
 
   celery:
     restart: no
@@ -23,6 +27,8 @@ services:
     command: python -m celery -A app worker --loglevel=info
     depends_on:
       - redis
+    volumes:
+      - .:/app
 
   redis:
     restart: no

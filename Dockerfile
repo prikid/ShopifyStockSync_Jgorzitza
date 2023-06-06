@@ -17,9 +17,9 @@ RUN rm -rf /tmp \
     && adduser \
       --disabled-password \
       --no-create-home \
-      app-user
-##    && chown -R app-user:app-user /app/backend/static \
-##    && chmod -R 755 /app/backend/static \
+      app-user \
+    && chown -R app-user:app-user /app/static \
+    && chmod -R 755 /app/static \
 ##    && chmod -R +x /scripts
 
 USER app-user

@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 
 from products_sync import views
@@ -9,5 +9,6 @@ router.register('sources', views.StockDataSourceViewSet)
 app_name = 'products_sync'
 
 urlpatterns = [
-    path('', include(router.urls))
+    path('', include(router.urls)),
+    re_path(r'^task/(?P<task_id>[\w-]+)/(?P<from_index>\d+)?', views.ManageCeleryTask.as_view())
 ]

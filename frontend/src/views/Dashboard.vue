@@ -1,5 +1,20 @@
 <template>
   <div class="container">
+    <b-modal v-model="is_log_modal_open" :has-modal-card="true" :can-cancel="false" :full-screen="true">
+
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title text-center">Synchronization process log</p>
+        </header>
+        <section class="modal-card-body">
+          <log-viewer :log="log" :hasNumber="false"/>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button @click="onButtonClick" :label="buttonLabel" :disabled="isButtonDisabled"/>
+        </footer>
+      </div>
+    </b-modal>
+
     <b-table
         :data="sources"
         :loading="loading"
@@ -8,7 +23,7 @@
         <router-link to="">{{ props.row.name }}</router-link>
       </b-table-column>
 
-      <b-table-column field="active" label="Enabled" v-slot="props" centered>
+      <b-table-column field="active" label="Run hourly" v-slot="props" centered>
         <b-button icon-left="check"
                   icon-pack="fas"
                   :type="props.row.active ? 'is-success' : 'is-dark'"
@@ -20,29 +35,34 @@
       </b-table-column>
 
       <b-table-column v-slot="props">
-        <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary" class="is-pulled-right"/>
-      </b-table-column>
+        <div class="buttons is-pulled-right">
+          <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary"/>
+          <b-button @click="syncNow(props.row)" label="Sync now" type="is-primary" :disabled="true"/>
+        </div>
 
-      <b-table-column v-slot="props">
-        <b-button @click="syncNow(props.row)" label="Sync now" type="is-primary" :disabled="true"
-                  class="is-pulled-right"/>
       </b-table-column>
-
     </b-table>
-
   </div>
 </template>
 
 <script>
-import axios from 'axios'
+import axios, {AxiosError} from 'axios'
+import LogViewer from "@femessage/log-viewer/src/log-viewer.vue";
 
 export default {
   name: 'Dashboard',
+  components: {LogViewer},
 
   data() {
     return {
       loading: false,
-      sources: []
+      sources: [],
+      is_log_modal_open: false,
+      processStarted: false,
+      taskId: undefined,
+      log: '',
+      logRowsCounter: 0,
+      isButtonDisabled: false
     }
   },
 
@@ -50,26 +70,91 @@ export default {
     this.getDataSources()
   },
 
+  computed: {
+    buttonLabel() {
+      return this.processStarted ? 'Stop' : 'Close'
+    },
+  },
+
   methods: {
     toggleActive(row) {
-      alert(row.id)
+      alert("Not implemented yet")
+    },
+
+    onButtonClick() {
+      if (this.processStarted)
+        this.stopProcess()
+      else {
+        this.clearLog()
+        this.is_log_modal_open = false
+      }
+    },
+
+    stopProcess() {
+      axios.delete(`/api/task/${this.taskId}/`)
+          .then(res => {
+            this.writeToLog("Stopping the process ...")
+            this.isButtonDisabled = true
+          })
+    },
+
+    clearLog() {
+      this.logRowsCounter = 0
+      this.log = ''
+    },
+
+    writeToLog(rows) {
+      if (typeof rows === 'string')
+        rows = [rows]
+
+      if (Array.isArray(rows) && rows.length) {
+        this.logRowsCounter += rows.length
+        const msg = rows.join('\n')
+        this.log += msg + "\n"
+      }
+    },
+
+    checkProgress() {
+      axios.get(`/api/task/${this.taskId}/${this.logRowsCounter}`)
+          .then(({data}) => {
+                // console.log(data)
+
+                this.writeToLog(data.logs)
+
+                if (data.complete) {
+                  this.isButtonDisabled = false
+                  this.processStarted = false
+                  this.writeToLog('--Done--')
+                } else {
+                  setTimeout(this.checkProgress, 500);
+                }
+              }
+          )
+          .catch((err) => {
+            console.log(err);
+            if (err instanceof AxiosError && err.code === "ERR_NETWORK") {
+              setTimeout(this.checkProgress, 5000);
+            }
+          });
     },
 
     syncNow(row, dry = false) {
-      this.loading = true
       const endpoint = dry ? 'dryrun' : 'run'
+      // const endpoint = 'testlog'
+      const url = `/api/sources/${row.id}/${endpoint}/`;
 
-      axios.post(`/api/sources/${row.id}/${endpoint}/`)
+      this.is_log_modal_open = true
+      this.processStarted = true
+      this.logRowsCounter = 0
+
+      axios.post(url)
           .then(({data}) => {
-             this.$buefy.dialog.alert({
-                    title: 'Sync process logs',
-                    message: data['logs'].join('\n'),
-                    confirmText: 'Ok'
-                })
+            this.taskId = data.task_id;
+            setTimeout(this.checkProgress, 500);
           })
-          .finally(() => {
-            this.loading = false
-          })
+          .catch((err) =>
+              console.log(err)
+          );
     },
 
     async getDataSources() {
@@ -77,7 +162,6 @@ export default {
       axios.get('/api/sources/')
           .then(({data}) => {
             this.sources = data
-            console.log(this.sources);
             this.loading = false
           })
           .catch((error) => {

@@ -152,3 +152,12 @@ LOGGING = {
 
 SHOPIFY_SHOP_NAME = config('SHOPIFY_SHOP_NAME')
 SHOPIFY_API_TOKEN = config('SHOPIFY_API_TOKEN')
+
+CELERY_BROKER_URL = config('REDIS_URL')
+CELERY_RESULT_BACKEND = config('REDIS_URL')
+# CELERY_BEAT_SCHEDULE = {
+#     'notify_customers': {
+#         'task': 'products_sync.tasks.sync_products',
+#         'schedule': 1 * 60 * 60,
+#     }
+# }

@@ -18,17 +18,9 @@ class AbstractProductsSyncProcessor(ABC):
         QUANTITY: tuple
 
     @abstractmethod
-    def run_sync(self, dry: bool = False):
+    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None):
         """
         Runs the sync process
-        :return:
-        """
-        pass
-
-    @abstractmethod
-    def get_logs(self) -> str:
-        """
-        Returns all logs generated during process
         :return:
         """
         pass
@@ -62,19 +54,6 @@ logging.error(f"Error happened")
 
 
 class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
-    def __init__(self, params: dict):
-        super().__init__(params)
-
-        self.stream = StringIO()
-        handler = logging.StreamHandler(self.stream)
-        formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s:%(message)s', datefmt='%d-%m-%Y %I:%M:%S')
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-
-    def __del__(self):
-        # Remove the stream handler to avoid duplicate logs
-        logger.removeHandler(self.stream)
-
     class FieldsMap(AbstractProductsSyncProcessor.FieldsMap):
         @classmethod
         def as_dict_flipped(cls):
@@ -83,11 +62,6 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
         @classmethod
         def dtypes(cls):
             return {item.value[0]: item.value[1] for item in cls}
-
-    def get_logs(self) -> list[str]:
-        self.stream.seek(0)
-        logs = self.stream.read().strip().split("\n")
-        return logs
 
     def run_sync(self, dry: bool = False):
         raise NotImplemented

@@ -11,5 +11,8 @@
     <p class="subtitle">
       Products and orders synchronization system
     </p>
+    <p class="mt-5">
+      <router-link to="/dashboard">Open dashboard</router-link>
+    </p>
   </section>
 </template>

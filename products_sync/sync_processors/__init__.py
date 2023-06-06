@@ -1,6 +1,7 @@
 from .base_products_sync_processor import AbstractProductsSyncProcessor
 from .fuse_5_processor import Fuse5Processor
 from .custom_csv_processor import CustomCSVProcessor
+from .shopify_products_updater import ShopifyProductsUpdater
 
 
 def get_processor_by_source(source) -> AbstractProductsSyncProcessor:
@@ -14,6 +15,6 @@ def get_processor_by_source(source) -> AbstractProductsSyncProcessor:
 
     processor_class = globals().get(source.processor)
 
-    processor = processor_class(source.params)
+    processor = processor_class(source.params, updater_class=ShopifyProductsUpdater)
 
     return processor

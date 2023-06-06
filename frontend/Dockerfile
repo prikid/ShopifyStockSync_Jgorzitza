@@ -1,5 +1,5 @@
 # build stage
-#FROM node:14-alpine3.17 as build-stage
+#FROM node:19-alpine3.17 as build-stage
 #WORKDIR /app
 #COPY package*.json ./
 #RUN yarn install
@@ -12,7 +12,7 @@
 #EXPOSE 80
 #CMD ["nginx", "-g", "daemon off;"]
 
-FROM node:14-alpine3.17 as build-stage
+FROM node:19-alpine3.17 as build-stage
 RUN yarn global add http-server
 WORKDIR /app
 COPY package*.json ./

@@ -1,8 +1,11 @@
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from app.lib.shopify_client import ShopifyClient
+
 import pandas as pd
+
+from app.lib.shopify_client import ShopifyClient
 from products_sync import logger
 
 
@@ -15,7 +18,8 @@ class ProductData:
 
 class AbstractShopifyProductsUpdater(ABC):
     @abstractmethod
-    def __init__(self, supplier_products_df: pd.DataFrame = None):
+    def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame = None):
+        self.shopify_client = shopify_client
         self.supplier_products_df: pd.DataFrame = supplier_products_df
         self.store_variants_df: pd.DataFrame | None = None
 
@@ -67,27 +71,50 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
     def _check_and_update(self, shopify_variant, supplier_product, dry: bool):
         # TODO check price and qty and update
-        logger.info("Suppliers product found - %s", supplier_product)
 
+        df = pd.DataFrame([
+            (shopify_variant.barcode, shopify_variant.sku, shopify_variant.price, shopify_variant.inventory_quantity),
+            (supplier_product['upc'], supplier_product['product_number'], supplier_product['price'],
+             supplier_product['quantity']),
+        ], columns=['UPC', 'SKU', 'Price', 'Qty'], index=['Shopify:', 'Supplier:'])
 
-if __name__ == '__main__':
-    # for debug
-    # TODO remove this
+        actions = ''
+        if shopify_variant.price != supplier_product['price']:
+            actions += f'The price will be updated to {supplier_product["price"]}\n'
+        if shopify_variant.inventory_quantity != supplier_product['quantity']:
+            actions += f'The quantity will be updated to {supplier_product["quantity"]}\n'
 
-    from decouple import config
-    import logging
-    from products_sync import logger
+        if actions == '':
+            actions = 'The product\'s price and qty is up to date.\n'
 
-    logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%d-%m-%Y %I:%M:%S')
-    logger.setLevel(logging.INFO)
+        if shopify_variant.sku == supplier_product['product_number']:
+            log_level = logging.INFO
+            msg = 'Matched products found'
+        else:
+            log_level = logging.WARNING
+            msg = "Matched products found by UPC, but the SKU is different"
 
-    logger.info('Starting sync')
+        logger.log(log_level, "%s: \n%s\n%s\n%s", msg, df, actions, '-' * 20)
 
-    shopify_client = ShopifyClient(
-        shop_name=config('SHOPIFY_SHOP_NAME'),
-        api_token=config('SHOPIFY_API_TOKEN'),
-    )
-
-    suppliers_df = pd.read_csv('../samples/suppliers_data.csv', dtype=str)
-    updater = ShopifyProductsUpdater(shopify_client, suppliers_df)
-    updater.process()
+#
+# if __name__ == '__main__':
+#     # for debug
+#     # TODO remove this
+#
+#     from decouple import config
+#     import logging
+#     from products_sync import logger
+#
+#     logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', datefmt='%d-%m-%Y %I:%M:%S')
+#     logger.setLevel(logging.INFO)
+#
+#     logger.info('Starting sync')
+#
+#     shopify_client = ShopifyClient(
+#         shop_name=config('SHOPIFY_SHOP_NAME'),
+#         api_token=config('SHOPIFY_API_TOKEN'),
+#     )
+#
+#     suppliers_df = pd.read_csv('../samples/suppliers_data.csv', dtype=str)
+#     updater = ShopifyProductsUpdater(shopify_client, suppliers_df)
+#     updater.process()

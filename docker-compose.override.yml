@@ -1,0 +1,32 @@
+services:
+  frontend:
+    build:
+      context: ./frontend/
+      dockerfile: Dockerfile_dev
+    ports:
+      - 8080:8080
+
+  backend:
+    restart: no
+    environment:
+      DB_HOST: host.docker.internal
+    command: sh -c "python manage.py collectstatic --no-input &&
+      python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      - redis
+
+  celery:
+    restart: no
+    environment:
+      DB_HOST: host.docker.internal
+    command: python -m celery -A app worker --loglevel=info
+    depends_on:
+      - redis
+
+  redis:
+    restart: no
+
+  db:
+    entrypoint: ["echo", "Service foo disabled"]
+    restart: no

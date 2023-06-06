@@ -41,7 +41,7 @@ services:
 
   celery:
     <<: *backend
-    command: ./wait-for-it.sh db:5433 -- celery -A app worker --loglevel=info
+    command: ./wait-for-it.sh db:5433 --  python -m celery -A app worker --loglevel=info
 
   #  celery-beat:
   #    build: .

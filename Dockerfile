@@ -18,8 +18,9 @@ RUN rm -rf /tmp \
       --disabled-password \
       --no-create-home \
       app-user \
+    && mkdir /app/static \
     && chown -R app-user:app-user /app/static \
-    && chmod -R 755 /app/static \
+    && chmod -R 755 /app/static
 ##    && chmod -R +x /scripts
 
 USER app-user

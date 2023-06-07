@@ -1,32 +1,28 @@
-FROM prikid/python_psycopg2_pandas_orjson:3.11-alpine
+FROM prikid/python_psycopg2_pandas_orjson:3.11-alpine-wv
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV WORKDIR=/app
+ENV USER=app-user
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt ./tmp/
+WORKDIR $WORKDIR
 
-RUN apk --update add --no-cache libstdc++ libpq\
-    && /py/bin/pip install --upgrade pip \
-    && /py/bin/pip install -r /tmp/requirements.txt
+COPY requirements.txt $WORKDIR
 
-COPY . /app
+# make static files dirs in order to avoid error from collectstatic
+RUN apk --update add --no-cache bash libstdc++ libpq \
+    && pip install --upgrade pip \
+    && mkdir $WORKDIR/static \
+    && mkdir $WORKDIR/static/admin \
+    && mkdir $WORKDIR/static/rest_framework \
+    && mkdir $WORKDIR/media
 
-RUN rm -rf /tmp \
-    && adduser \
-      --disabled-password \
-      --no-create-home \
-      app-user \
-    && mkdir /app/static \
-    && chown -R app-user:app-user /app/static \
-    && chmod -R 755 /app/static \
-    && chown -R app-user:app-user /app \
-    && chmod -R 755 /app
-##    && chmod -R +x /scripts
 
-USER app-user
+RUN pip install -r requirements.txt \
+    && adduser --disabled-password --no-create-home $USER \
+    && chown -R $USER:$USER $WORKDIR
 
-WORKDIR /app
-ENV PATH="/py/bin:$PATH"
+COPY . $WORKDIR
+USER $USER
 
-#CMD python manage.py runserver 0.0.0.0:8000
-CMD "./run.sh"
+EXPOSE 8000

@@ -42,17 +42,6 @@ class AbstractProductsSyncProcessor(ABC):
     #     pass
 
 
-import logging
-
-logging.basicConfig(filename='errors.log',
-                    level=logging.ERROR,
-                    filemode='w',
-                    format='%(asctime)s %(levelname)s:%(message)s',
-                    datefmt='%d-%m-%Y %I:%M:%S')
-
-logging.error(f"Error happened")
-
-
 class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
     class FieldsMap(AbstractProductsSyncProcessor.FieldsMap):
         @classmethod
@@ -63,7 +52,7 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
         def dtypes(cls):
             return {item.value[0]: item.value[1] for item in cls}
 
-    def run_sync(self, dry: bool = False):
+    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None):
         raise NotImplemented
 
     def get_data(self) -> pd.DataFrame:

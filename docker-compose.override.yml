@@ -3,6 +3,8 @@ services:
     build:
       context: ./frontend/
       dockerfile: Dockerfile_dev
+    environment:
+      VUE_APP_BACKEND_HOST: http://localhost:8000
     ports:
       - 8080:8080
     volumes:
@@ -12,9 +14,12 @@ services:
     restart: no
     environment:
       DB_HOST: host.docker.internal
-    command: sh -c "python manage.py collectstatic --no-input &&
+    command: >
+      sh -c "python manage.py collectstatic --no-input &&
       python manage.py migrate &&
       python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - 8000:8000
     depends_on:
       - redis
     volumes:
@@ -33,6 +38,10 @@ services:
   redis:
     restart: no
 
+  nginx:
+    entrypoint: [ "echo", "Service foo disabled" ]
+    restart: no
+
   db:
-    entrypoint: ["echo", "Service foo disabled"]
+    entrypoint: [ "echo", "Service foo disabled" ]
     restart: no

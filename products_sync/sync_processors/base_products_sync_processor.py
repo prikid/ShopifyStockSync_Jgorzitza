@@ -2,23 +2,27 @@ import logging
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import StringIO
+from typing import Type
 
 import pandas as pd
 
 from products_sync import logger
+from .shopify_products_updater import AbstractShopifyProductsUpdater
 
 
 class AbstractProductsSyncProcessor(ABC):
-    def __init__(self, params: dict):
+    def __init__(self, params: dict, updater_class: Type["AbstractShopifyProductsUpdater"]):
         self.params = params
+        self.updater_class = updater_class
 
     class FieldsMap(Enum):
-        UPC: tuple
+        BARCODE: tuple
         PRICE: tuple
-        QUANTITY: tuple
+        INVENTORY_QUANTITY: tuple
+        SKU: tuple
 
     @abstractmethod
-    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None):
+    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
         """
         Runs the sync process
         :return:
@@ -52,7 +56,7 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
         def dtypes(cls):
             return {item.value[0]: item.value[1] for item in cls}
 
-    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None):
+    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
         raise NotImplemented
 
     def get_data(self) -> pd.DataFrame:

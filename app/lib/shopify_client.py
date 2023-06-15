@@ -2,9 +2,10 @@ from time import sleep
 from typing import Type, Iterator
 import logging
 
-import shopify
 from decouple import config
-from shopify import ShopifyResource
+
+import shopify
+from shopify import ShopifyResource, Variant, Location
 from shopify.collection import PaginatedIterator
 
 
@@ -26,16 +27,28 @@ class ShopifyClient:
         shopify.ShopifyResource.activate_session(session)
         self.client = shopify
 
-        self.on_page_callback = on_page_callback
+        self.callback = on_page_callback
 
     def __del__(self):
         self.client.ShopifyResource.clear_session()
 
+    def set_inventory_level(self, variant: Variant, quantity: int, location: Location | None = None):
+        if location is None:
+            location = self.client.Location.find(limit=1)[0]
+
+        self.client.InventoryLevel.set(
+            inventory_item_id=variant.inventory_item_id,
+            location_id=location.id,
+            available=quantity
+        )
+
     def products(self):
-        return self._iter_objects(self.client.Variant)
+        return self._iter_objects(self.client.Product)
 
     def variants(self):
-        return self._iter_objects(self.client.Variant)
+        for variant in self._iter_objects(self.client.Variant):
+            variant.price = float(variant.price)
+            yield variant
 
     def _iter_objects(self, resource: Type[ShopifyResource]) -> Iterator:
         for page_idx, page in enumerate(PaginatedIterator(resource.find(limit=self.page_size))):
@@ -45,9 +58,9 @@ class ShopifyClient:
             for obj in page:
                 yield obj
 
-            if self.on_page_callback is not None:
-                if not self.on_page_callback():
-                    break
+                if self.callback is not None:
+                    if not self.callback():
+                        break
 
             req_count, rate = map(int, page.metadata['headers']['X-Shopify-Shop-Api-Call-Limit'].split('/'))
 

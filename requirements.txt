@@ -1,5 +1,5 @@
-celery~=5.2.7
-django~=4.2.1 ; python_version >= '3.8'
+celery==5.3.0
+django==4.2.2 ; python_version >= '3.8'
 django-cors-headers~=4.0.0
 djangorestframework~=3.14.0
 drf-spectacular~=0.26.2
@@ -7,6 +7,6 @@ gunicorn~=20.1.0
 pandas==2.0.2
 psycopg2-binary==2.9.6
 python-decouple~=3.8
-shopifyapi==12.3.0
+shopifyapi @ git+https://github.com/prikid/shopify_python_api@master
 requests~=2.31.0
 redis~=4.5.5

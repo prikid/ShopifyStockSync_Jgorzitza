@@ -143,11 +143,31 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 20
 }
 
 LOGGING = {
     "version": 1,  # the dictConfig format version
     "disable_existing_loggers": False,  # retain the default loggers
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+
+    "loggers": {
+        "products_sync": {
+            "handlers": ["console"],
+            "level": config("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+    },
 }
 
 SHOPIFY_SHOP_NAME = config('SHOPIFY_SHOP_NAME')
@@ -161,3 +181,5 @@ CELERY_RESULT_BACKEND = config('REDIS_URL')
 #         'schedule': 1 * 60 * 60,
 #     }
 # }
+
+PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS = config('PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS', default=30)

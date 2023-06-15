@@ -4,6 +4,7 @@ import HomeView from '../views/HomeView.vue'
 import store from "../store";
 import LoginView from "../views/LoginView.vue";
 import NotFound from "@/views/NotFound.vue";
+import LogsListView from "@/views/LogsListView.vue";
 
 Vue.use(VueRouter)
 
@@ -29,6 +30,14 @@ const routes = [
         // this generates a separate chunk (about.[hash].js) for this route
         // which is lazy-loaded when the route is visited.
         component: () => import(/* webpackChunkName: "dashboard" */ '../views/Dashboard.vue')
+    },
+    {
+        path: '/logs',
+        name: 'logs',
+        meta: {
+            requireLogin: true
+        },
+        component: LogsListView
     },
     {
         path: "/:notFound",

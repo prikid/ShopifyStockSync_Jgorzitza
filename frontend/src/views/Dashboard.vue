@@ -11,6 +11,7 @@
         </section>
         <footer class="modal-card-foot">
           <b-button @click="onButtonClick" :label="buttonLabel" :disabled="isButtonDisabled"/>
+          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv" label="Download CSV log" type="is-primary"/>
         </footer>
       </div>
     </b-modal>
@@ -20,7 +21,8 @@
         :loading="loading"
     >
       <b-table-column field="name" label="Name" v-slot="props">
-        <router-link to="">{{ props.row.name }}</router-link>
+        {{ props.row.name }}
+        <!--        <router-link to="logs">{{ props.row.name }}</router-link>-->
       </b-table-column>
 
       <b-table-column field="active" label="Run hourly" v-slot="props" centered>
@@ -37,7 +39,7 @@
       <b-table-column v-slot="props">
         <div class="buttons is-pulled-right">
           <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary"/>
-          <b-button @click="syncNow(props.row)" label="Sync now" type="is-primary" :disabled="true"/>
+          <b-button @click="syncNow(props.row, false)" label="Sync now" type="is-primary"/>
         </div>
 
       </b-table-column>
@@ -48,10 +50,14 @@
 <script>
 import axios, {AxiosError} from 'axios'
 import LogViewer from "@femessage/log-viewer/src/log-viewer.vue";
+import DownloadFileMixin from "@/mixins/DownloadFileMixin.vue";
 
 export default {
+  // TODO pagination
+
   name: 'Dashboard',
   components: {LogViewer},
+  mixins: [DownloadFileMixin],
 
   data() {
     return {
@@ -62,7 +68,8 @@ export default {
       taskId: undefined,
       log: '',
       logRowsCounter: 0,
-      isButtonDisabled: false
+      isButtonDisabled: false,
+      log_group_id: undefined
     }
   },
 
@@ -73,12 +80,21 @@ export default {
   computed: {
     buttonLabel() {
       return this.processStarted ? 'Stop' : 'Close'
-    },
+    }
   },
 
   methods: {
+
+    downloadLogCsv() {
+      const url = `/api/logs/download-csv/${this.log_group_id}`
+      this.downloadFile(url)
+    },
+
     toggleActive(row) {
-      alert("Not implemented yet")
+      axios.patch(`/api/sources/${row.id}/`, {'active': !row.active})
+          .then(({data}) => {
+            row.active = data['active']
+          })
     },
 
     onButtonClick() {
@@ -92,8 +108,9 @@ export default {
 
     stopProcess() {
       axios.delete(`/api/task/${this.taskId}/`)
-          .then(res => {
+          .then(({data}) => {
             this.writeToLog("Stopping the process ...")
+            this.log_group_id = data.gid
             this.isButtonDisabled = true
           })
     },
@@ -117,11 +134,12 @@ export default {
     checkProgress() {
       axios.get(`/api/task/${this.taskId}/${this.logRowsCounter}`)
           .then(({data}) => {
-                // console.log(data)
-
                 this.writeToLog(data.logs)
 
                 if (data.complete) {
+                  // console.log(data)
+
+                  this.log_group_id = data.gid
                   this.isButtonDisabled = false
                   this.processStarted = false
                   this.writeToLog('--Done--')
@@ -159,9 +177,9 @@ export default {
 
     async getDataSources() {
       this.loading = true
-      axios.get('/api/sources/')
+      axios.get('/api/sources/?limit=100')
           .then(({data}) => {
-            this.sources = data
+            this.sources = data.results
             this.loading = false
           })
           .catch((error) => {

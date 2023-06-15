@@ -12,10 +12,16 @@
             </b-navbar-item>
           </template>
           <template #start>
-            <!--        <b-navbar-item href="/">Home</b-navbar-item>-->
+            <b-navbar-item>
+              <router-link to="/dashboard">Dashboard</router-link>
+            </b-navbar-item>
           </template>
 
           <template #end>
+            <b-navbar-item>
+              <router-link to="/logs">Logs</router-link>
+            </b-navbar-item>
+
             <b-navbar-item tag="div">
 
               <b-button v-if="!$store.getters.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>

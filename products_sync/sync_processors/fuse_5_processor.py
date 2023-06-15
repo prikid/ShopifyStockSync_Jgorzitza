@@ -1,8 +1,12 @@
 import json
+from decimal import Decimal
+from pathlib import Path
 from typing import Type
 
 import pandas as pd
 import requests
+from decouple import config
+from django.utils.functional import cached_property
 
 from app import settings
 from app.lib.shopify_client import ShopifyClient
@@ -18,41 +22,51 @@ class Fuse5Processor(BaseProductsSyncProcessor):
     """
 
     def __init__(self, params: dict, updater_class: Type["AbstractShopifyProductsUpdater"]):
-        super().__init__(params)
+        super().__init__(params, updater_class)
 
         assert 'API_KEY' in params, 'API_URL' in params
         self.api_key = params['API_KEY']
         self.api_url = params['API_URL']
-        self.csv_url = None
 
         self.updater_class = updater_class
 
         self._timeout = 600
 
     class FieldsMap(BaseProductsSyncProcessor.FieldsMap):
-        UPC = ('unit_barcode', str)
+        BARCODE = ('unit_barcode', str)
         PRICE = ('m1', float)
-        QUANTITY = ('all_location_qty_onhand', int)
+        INVENTORY_QUANTITY = ('all_location_qty_onhand', int)
+        SKU = ('product_number', str)
 
-    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None):
+    @cached_property
+    def source_name(self):
+        from products_sync.models import StockDataSource
+
+        if source := StockDataSource.objects.filter(processor=self.__class__.__name__).first():
+            return source.name
+        else:
+            return self.__class__.__name__
+
+    def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
         def check_if_aborted():
-            if is_aborted_callback():
+            if is_aborted_callback and is_aborted_callback():
                 logger.warning('The process has been aborted')
                 return False
             return True
 
-        logger.info("Loading suppliers data (may takes a few minutes)...")
-
-        # fetching data from remote
-        suppliers_df = self.get_data()
-
-        # for debug
-        # suppliers_df = pd.read_csv(settings.BASE_DIR / 'samples/suppliers_data.csv')
-        # suppliers_df.to_csv(settings.BASE_DIR / 'samples/suppliers_data.csv', index=False)
+        if saved_data_file_name := config('FUSE5_LOAD_DATA_FROM_FILE'):
+            if (saved_data_file := settings.BASE_DIR / Path(saved_data_file_name)).exists():
+                logger.info("Loading data from file %s", saved_data_file_name)
+                suppliers_df = self._read_csv(saved_data_file)
+            else:
+                suppliers_df = self.get_data()
+                suppliers_df.to_csv(saved_data_file, index=False)
+        else:
+            suppliers_df = self.get_data()
 
         if is_aborted_callback is not None and is_aborted_callback():
             logger.warning('The process has been aborted')
-            return
+            return None
 
         logger.info('Starting sync...')
 
@@ -64,10 +78,14 @@ class Fuse5Processor(BaseProductsSyncProcessor):
         )
 
         # TODO maybe it is better to extract this logic to the parent class
-        updater = self.updater_class(shopify_client, suppliers_df)
-        updater.process(dry=dry)
+        updater = self.updater_class(shopify_client, suppliers_df, self.source_name)
+        gid = updater.process(dry=dry).gid
+
+        return gid
 
     def get_data(self):
+        logger.info("Loading suppliers data (may takes a few minutes)...")
+
         res = requests.post(self.api_url, data={'data': json.dumps(self._request_data)}, timeout=self._timeout)
         res.raise_for_status()
 
@@ -77,25 +95,23 @@ class Fuse5Processor(BaseProductsSyncProcessor):
             raise Exception('Unexpected response from the Fuse 5 server', res.content)
 
         if res_data['status']:
-            self.csv_url = res_data['data']
-            return self._read_csv()
+            csv_url = res_data['data']
+            return self._read_csv(csv_url)
 
         # something went wrong
         messages = ' '.join(str(item) for item in res_data['msg'])
         raise Exception(messages, res.content)
 
-    def _read_csv(self) -> pd.DataFrame:
-        df = pd.read_csv(self.csv_url, dtype=self.FieldsMap.dtypes())
-
+    def _read_csv(self, path: str) -> pd.DataFrame:
+        df = pd.read_csv(path, dtype=self.FieldsMap.dtypes())
         columns = self.FieldsMap.as_dict_flipped()
-
         df.rename(columns=columns, inplace=True)
 
         return df
 
     @property
     def _request_data(self):
-        # TODO use only fields fro FieldsMap
+        # TODO use only fields from FieldsMap
         return {
             "authenticate": {
                 "apikey": self.api_key
@@ -118,7 +134,6 @@ class Fuse5Processor(BaseProductsSyncProcessor):
 
             ]
         }
-
 
 # if __name__ == '__main__':
 #     # TODO remove this

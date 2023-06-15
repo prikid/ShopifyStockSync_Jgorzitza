@@ -54,7 +54,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
                 return False
             return True
 
-        if saved_data_file_name := config('FUSE5_LOAD_DATA_FROM_FILE'):
+        if saved_data_file_name := config('FUSE5_LOAD_DATA_FROM_FILE', None):
             if (saved_data_file := settings.BASE_DIR / Path(saved_data_file_name)).exists():
                 logger.info("Loading data from file %s", saved_data_file_name)
                 suppliers_df = self._read_csv(saved_data_file)

@@ -1,7 +1,7 @@
 version: '3.9'
 
 x-backend: &backend
-#  restart: unless-stopped
+  #  restart: unless-stopped
   build:
     context: .
     dockerfile: ./Dockerfile
@@ -28,7 +28,7 @@ services:
       - .env
     environment:
       VUE_APP_BACKEND_HOST: http://localhost
-#    restart: unless-stopped
+  #    restart: unless-stopped
 
 
   backend:
@@ -45,13 +45,11 @@ services:
     <<: *backend
     command: ./wait-for-it.sh db:5432 -- python -m celery -A app worker --loglevel=info
 
-  #  celery-beat:
-  #    build: .
-  #    command: celery -A storefront beat --loglevel=info
-  #    depends_on:
-  #      - redis
-  #    volumes:
-  #      - .:/app
+  celery-beat:
+    <<: *backend
+    command: ./wait-for-it.sh db:5432 -- python -m celery -A app beat --loglevel=info
+
+
   #  flower:
   #    build: .
   #    command: celery -A storefront flower
@@ -69,7 +67,7 @@ services:
   nginx:
     container_name: nginx_proxy
     build: ./nginx
-#    restart: unless-stopped
+    #    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
@@ -81,7 +79,7 @@ services:
 
   db:
     image: postgres:15-alpine3.18
-#    restart: unless-stopped
+    #    restart: unless-stopped
     ports:
       - '5433:5432'
     volumes:
@@ -100,7 +98,7 @@ services:
     image: redis:7.0-alpine
     ports:
       - 6379:6379
-#    restart: unless-stopped
+    #    restart: unless-stopped
     volumes:
       - redisdata:/data
 

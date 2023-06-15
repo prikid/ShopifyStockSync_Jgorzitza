@@ -10,7 +10,7 @@ WORKDIR $WORKDIR
 COPY requirements.txt $WORKDIR
 
 # make static files dirs in order to avoid error from collectstatic
-RUN apk --update add --no-cache bash libstdc++ libpq \
+RUN apk --update add --no-cache bash libstdc++ libpq git \
     && pip install --upgrade pip \
     && mkdir $WORKDIR/static \
     && mkdir $WORKDIR/static/admin \

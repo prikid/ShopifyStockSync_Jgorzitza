@@ -10,3 +10,5 @@ python-decouple~=3.8
 shopifyapi @ git+https://github.com/prikid/shopify_python_api@master
 requests~=2.31.0
 redis~=4.5.5
+haggis~=0.9.1
+python-dateutil~=2.8.2

@@ -9,7 +9,8 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import logging
+from datetime import timedelta
 from pathlib import Path
 import random
 import string
@@ -148,14 +149,31 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20
 }
 
+DJANGO_LOG_LEVEL = config('DJANGO_LOG_LEVEL', default=logging.INFO)
+
 LOGGING = {
     "version": 1,  # the dictConfig format version
     "disable_existing_loggers": False,  # retain the default loggers
+
+    'formatters': {
+        'simple': {
+            'format': '%(asctime)s %(name)s %(module)s: %(message)s',
+            'datefmt': '%Y-%m-%dT%H:%M:%S',
+        },
+    },
+
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
         },
+
+        "papertrail": {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.SysLogHandler',
+            'formatter': 'simple',
+        }
     },
+
     "root": {
         "handlers": ["console"],
         "level": "WARNING",
@@ -163,23 +181,40 @@ LOGGING = {
 
     "loggers": {
         "products_sync": {
-            "handlers": ["console"],
-            "level": config("DJANGO_LOG_LEVEL", default="INFO"),
+            "handlers": ["console", "papertrail"],
+            "level": DJANGO_LOG_LEVEL,
             "propagate": False,
+        },
+
+        'django': {
+            'handlers': ['console', 'papertrail'],
+            'level': DJANGO_LOG_LEVEL,
+            'propagate': True
+        },
+
+        'celery': {
+            'handlers': ['console', 'papertrail'],
+            'level': 'INFO',
+            'propagate': True,
         },
     },
 }
+
+if papertrail_destination := config('PAPERTRAIL_DESTINATION', None):
+    host, port = papertrail_destination.split(':')
+    LOGGING['handlers']['papertrail']['address'] = (host, int(port),)
 
 SHOPIFY_SHOP_NAME = config('SHOPIFY_SHOP_NAME')
 SHOPIFY_API_TOKEN = config('SHOPIFY_API_TOKEN')
 
 CELERY_BROKER_URL = config('REDIS_URL')
 CELERY_RESULT_BACKEND = config('REDIS_URL')
-# CELERY_BEAT_SCHEDULE = {
-#     'notify_customers': {
-#         'task': 'products_sync.tasks.sync_products',
-#         'schedule': 1 * 60 * 60,
-#     }
-# }
+
+CELERY_BEAT_SCHEDULE = {
+    'run_all_sync_hourly': {
+        'task': 'products_sync.tasks.run_all_sync_for_all_active_sources',
+        'schedule': timedelta(minutes=config('RUN_SYNC_EVERY_MINUTES', 60, cast=int)),
+    }
+}
 
 PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS = config('PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS', default=30)

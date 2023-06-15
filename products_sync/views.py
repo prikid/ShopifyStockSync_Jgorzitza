@@ -1,5 +1,4 @@
 import pandas as pd
-from celery.contrib.abortable import AbortableAsyncResult
 from celery.result import AsyncResult
 from django.http import HttpResponse
 from django.utils.text import slugify
@@ -11,7 +10,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app import settings
 from .models import StockDataSource, ProductsUpdateLog
 from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer
 from .tasks import sync_products
@@ -22,7 +20,7 @@ class StockDataSourceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, vie
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    queryset = StockDataSource.objects.all()
+    queryset = StockDataSource.objects.order_by('id').all()
 
     @action(detail=True, methods=['post'])
     def run(self, request, pk=None, dry: bool = False):

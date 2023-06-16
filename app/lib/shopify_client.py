@@ -3,14 +3,15 @@ from typing import Type, Iterator
 import logging
 
 from decouple import config
+from pyactiveresource.connection import ClientError
 
 import shopify
-from shopify import ShopifyResource, Variant, Location
+from shopify import ShopifyResource, Variant, Location, Limits
 from shopify.collection import PaginatedIterator
 
 
 class ShopifyClient:
-    RATE_LIMIT_WAIT_TIME = 30
+    # RATE_LIMIT_WAIT_TIME = 30
 
     def __init__(self, shop_name: str, api_token: str, page_size: int = 250, logger: logging.Logger = None,
                  on_page_callback: callable = None) -> None:
@@ -34,9 +35,10 @@ class ShopifyClient:
 
     def set_inventory_level(self, variant: Variant, quantity: int, location: Location | None = None):
         if location is None:
-            location = self.client.Location.find(limit=1)[0]
+            location = self.call_with_rate_limit(self.client.Location.find, limit=1)[0]
 
-        self.client.InventoryLevel.set(
+        self.call_with_rate_limit(
+            self.client.InventoryLevel.set,
             inventory_item_id=variant.inventory_item_id,
             location_id=location.id,
             available=quantity
@@ -51,7 +53,10 @@ class ShopifyClient:
             yield variant
 
     def _iter_objects(self, resource: Type[ShopifyResource]) -> Iterator:
-        for page_idx, page in enumerate(PaginatedIterator(resource.find(limit=self.page_size))):
+        objects = self.call_with_rate_limit(resource.find, limit=self.page_size)
+        pages = PaginatedIterator(objects)
+
+        for page_idx, page in enumerate(pages):
             self.logger.info("Page %s containing %s items has been received from the Shopify store", page_idx + 1,
                              len(page))
 
@@ -62,9 +67,29 @@ class ShopifyClient:
                     if not self.callback():
                         break
 
-            req_count, rate = map(int, page.metadata['headers']['X-Shopify-Shop-Api-Call-Limit'].split('/'))
+            # req_count, rate = map(int, page.metadata['headers']['X-Shopify-Shop-Api-Call-Limit'].split('/'))
 
-            if req_count == rate:
-                self.logger.warning("The API rate limit has been exceeded. Waiting for %s seconds",
-                                    self.RATE_LIMIT_WAIT_TIME)
-                sleep(self.RATE_LIMIT_WAIT_TIME)
+            # if req_count == rate:
+            #     self.logger.warning("The API rate limit has been exceeded. Waiting for %s seconds",
+            #                         self.RATE_LIMIT_WAIT_TIME)
+            #     sleep(self.RATE_LIMIT_WAIT_TIME)
+
+    def save(self, object: ShopifyResource):
+        return self.call_with_rate_limit(object.save)
+
+    @staticmethod
+    def call_with_rate_limit(method: callable, *args, **kwargs):
+        max_retries = 5
+
+        while max_retries:
+            max_retries -= 1
+
+            if Limits.credit_maxed():
+                sleep(1)
+
+            try:
+                return method(*args, **kwargs)
+            except ClientError as e:
+                if e.code == 429:
+                    continue
+                raise e

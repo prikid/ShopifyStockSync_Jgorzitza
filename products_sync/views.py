@@ -129,11 +129,13 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         pd.json_normalize(df['changes'][0], sep='_')
         changes_df = pd.json_normalize(df['changes'], sep='_')
 
-        df = pd.concat([
-            df.drop(columns=['changes', 'gid']),
-            changes_df
-        ], axis=1)
+        df = pd.concat([df, changes_df], axis=1)
 
-        df.to_csv(response, index=False)
+        df.to_csv(response,
+                  columns=['source', 'time', 'product_id', 'variant_id', 'sku', 'price_old', 'price_new',
+                           'quantity_old', 'quantity_new'],
+                  index=False,
+                  date_format="%m-%d-%Y %H:%M:%S"
+                  )
 
         return response

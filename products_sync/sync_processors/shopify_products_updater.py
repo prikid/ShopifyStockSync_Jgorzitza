@@ -177,7 +177,7 @@ class ShopifyVariantUpdater:
 
     def save_variant(self):
         try:
-            if not self.shopify_variant.save():
+            if not self.shopify_client.save(self.shopify_variant):
                 raise Exception("Can't save shopify variant")
         except Exception as e:
             logger.error("Unable to update shopify product variant ID=%s - %s", self.shopify_variant.id, e)

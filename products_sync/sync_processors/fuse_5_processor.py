@@ -60,7 +60,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
                 suppliers_df = self._read_csv(saved_data_file)
             else:
                 suppliers_df = self.get_data()
-                saved_data_file.mkdir(exist_ok=True, parents=True)
+                saved_data_file.parent.mkdir(exist_ok=True, parents=True)
                 suppliers_df.to_csv(saved_data_file, index=False)
         else:
             suppliers_df = self.get_data()

@@ -12,6 +12,7 @@ from shopify.collection import PaginatedIterator
 
 class ShopifyClient:
     # RATE_LIMIT_WAIT_TIME = 30
+    DEFAULT_LOCATION_NAME = "One Guy Garage"
 
     def __init__(self, shop_name: str, api_token: str, page_size: int = 250, logger: logging.Logger = None,
                  on_page_callback: callable = None) -> None:
@@ -30,12 +31,20 @@ class ShopifyClient:
 
         self.callback = on_page_callback
 
+        locations = self.get_locations()
+        self.default_location = next((loc for loc in locations if loc.name == self.DEFAULT_LOCATION_NAME), None)
+        if self.default_location is None:
+            self.default_location = locations[0]
+
     def __del__(self):
         self.client.ShopifyResource.clear_session()
 
+    def get_locations(self) -> list[Location]:
+        return self.call_with_rate_limit(self.client.Location.find)
+
     def set_inventory_level(self, variant: Variant, quantity: int, location: Location | None = None):
         if location is None:
-            location = self.call_with_rate_limit(self.client.Location.find, limit=1)[0]
+            location = self.default_location
 
         self.call_with_rate_limit(
             self.client.InventoryLevel.set,
@@ -84,7 +93,14 @@ class ShopifyClient:
         while max_retries:
             max_retries -= 1
 
-            if Limits.credit_maxed():
+            try:
+                is_limit_maxed = Limits.credit_maxed()
+            except Exception as e:
+                is_limit_maxed = True
+                logging.error(e)
+
+            if is_limit_maxed:
+                logging.debug("Rate limit maxed. Sleeping 1 sec")
                 sleep(1)
 
             try:

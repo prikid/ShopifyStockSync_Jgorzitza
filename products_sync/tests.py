@@ -1,5 +1,6 @@
 import os
 import random
+from pathlib import Path
 
 import pandas as pd
 from decouple import config
@@ -8,6 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, APITestCase
 
+from app import settings
 from app.lib.shopify_client import ShopifyClient
 from products_sync.sync_processors import Fuse5Processor, ShopifyProductsUpdater
 from products_sync.sync_processors.shopify_products_updater import SHOPIFY_FIELDS
@@ -50,3 +52,14 @@ class TestShopifyProductsUpdater(APITestCase):
     #     cls_name = Fuse5Processor.__name__
     #     name = StockDataSource.objects.filter(processor=Processors.FUSE_5_PROCESSOR.value).first().name
     #     print(name)
+
+    def test_check_csv(self):
+        df = pd.read_csv(settings.BASE_DIR / Path(config('FUSE5_LOAD_DATA_FROM_FILE')))
+        gdf = df.groupby('product_number').agg(
+            Count=('unit_barcode', 'count'),
+            Locations=('location_name', list),
+            ProductNames=('product_name', list),
+            productNumbers=('product_number', list),
+            lineCodes=('line_code', list)
+        )
+        print(gdf)

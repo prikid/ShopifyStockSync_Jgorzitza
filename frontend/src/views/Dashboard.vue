@@ -11,7 +11,8 @@
         </section>
         <footer class="modal-card-foot">
           <b-button @click="onButtonClick" :label="buttonLabel" :disabled="isButtonDisabled"/>
-          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv" label="Download CSV log" type="is-primary"/>
+          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv" label="Download CSV log"
+                    type="is-primary"/>
         </footer>
       </div>
     </b-modal>
@@ -150,7 +151,7 @@ export default {
           )
           .catch((err) => {
             console.log(err);
-            if (err instanceof AxiosError && err.code === "ERR_NETWORK") {
+            if (err instanceof AxiosError && ["ERR_NETWORK", "ERR_TIMED_OUT", "ERR_NETWORK_IO_SUSPENDED"].includes(err.code)) {
               setTimeout(this.checkProgress, 5000);
             }
           });

@@ -182,7 +182,8 @@ LOGGING = {
     "loggers": {
         "products_sync": {
             "handlers": ["console", "papertrail"],
-            "level": DJANGO_LOG_LEVEL,
+            # "level": DJANGO_LOG_LEVEL,
+            "level": logging.DEBUG,
             "propagate": False,
         },
 

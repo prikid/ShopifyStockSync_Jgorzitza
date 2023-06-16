@@ -30,12 +30,12 @@ class Fuse5Processor(BaseProductsSyncProcessor):
 
         self.updater_class = updater_class
 
-        self._timeout = 600
+        self._timeout = 60 * 60 * 2
 
     class FieldsMap(BaseProductsSyncProcessor.FieldsMap):
         BARCODE = ('unit_barcode', str)
         PRICE = ('m1', float)
-        INVENTORY_QUANTITY = ('all_location_qty_onhand', int)
+        INVENTORY_QUANTITY = ('qty_onhand', int)
         SKU = ('product_number', str)
 
     @cached_property
@@ -68,6 +68,8 @@ class Fuse5Processor(BaseProductsSyncProcessor):
             logger.warning('The process has been aborted')
             return None
 
+        return
+
         logger.info('Starting sync...')
 
         shopify_client = ShopifyClient(
@@ -96,6 +98,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
 
         if res_data['status']:
             csv_url = res_data['data']
+            logger.info('The file is ready. Downloading... - %s', csv_url)
             return self._read_csv(csv_url)
 
         # something went wrong
@@ -112,6 +115,8 @@ class Fuse5Processor(BaseProductsSyncProcessor):
     @property
     def _request_data(self):
         # TODO use only fields from FieldsMap
+        # TODO use changedsince to get only items changed since previous sync
+
         return {
             "authenticate": {
                 "apikey": self.api_key
@@ -125,10 +130,14 @@ class Fuse5Processor(BaseProductsSyncProcessor):
                         "product_name",
                         "unit_barcode",
                         "m1",
+                        "location_name",
+                        "quantity_onhand",
                         "all_location_qty_onhand"
                     ],
+
+                    # FIXME
                     # "identifier": {
-                    #     "changedsince": "06-03-2023"  # FIXME
+                    #     "changedsince": "06-01-2023 00:00:00"
                     # }
                 }
 

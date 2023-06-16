@@ -68,8 +68,6 @@ class Fuse5Processor(BaseProductsSyncProcessor):
             logger.warning('The process has been aborted')
             return None
 
-        return
-
         logger.info('Starting sync...')
 
         shopify_client = ShopifyClient(

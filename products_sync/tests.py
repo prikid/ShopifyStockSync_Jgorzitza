@@ -56,22 +56,24 @@ class TestShopifyProductsUpdater(APITestCase):
     def test_check_csv(self):
         df = pd.read_csv(settings.BASE_DIR / Path(config('FUSE5_LOAD_DATA_FROM_FILE')))
 
-        # gdf = df.groupby('barcode').agg(
-        #     Count=('barcode', 'count'),
-        #     Locations=('location_name', list),
-        #     ProductNames=('product_name', list),
-        #     productNumbers=('sku', list),
-        #     lineCodes=('line_code', list),
-        #     qty=('quantity_onhand', list),
-        #     qtyAll=('all_location_qty_onhand', list)
-        # )
-        gdf = df.groupby('location_name').agg(
-            Count=('location_name', 'count'),
+        gdf = df.groupby('unit_barcode').agg(
+            Count=('unit_barcode', 'count'),
+            Locations=('location_name', list),
+            ProductNames=('product_name', list),
+            productNumbers=('product_number', list),
+            lineCodes=('line_code', list),
+            qty=('quantity_onhand', list),
+            qtyAll=('all_location_qty_onhand', list)
         )
+
+        # gdf = df.groupby('location_name').agg(
+        #     Count=('location_name', 'count'),
+        # )
 
         gdf = gdf[gdf['Count'] > 1]
 
         pd.set_option('display.max_rows', None)
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', None)
+
         print(gdf)

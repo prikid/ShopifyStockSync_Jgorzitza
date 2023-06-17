@@ -65,8 +65,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
         else:
             suppliers_df = self.get_data()
 
-        if is_aborted_callback is not None and is_aborted_callback():
-            logger.warning('The process has been aborted')
+        if not check_if_aborted():
             return None
 
         logger.info('Starting sync...')

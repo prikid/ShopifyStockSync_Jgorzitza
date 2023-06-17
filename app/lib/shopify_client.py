@@ -31,10 +31,10 @@ class ShopifyClient:
 
         self.callback = on_page_callback
 
-        locations = self.get_locations()
-        self.default_location = next((loc for loc in locations if loc.name == self.DEFAULT_LOCATION_NAME), None)
+        self.locations = self.get_locations()
+        self.default_location = self.find_location_by_name(self.DEFAULT_LOCATION_NAME)
         if self.default_location is None:
-            self.default_location = locations[0]
+            self.default_location = self.locations[0]
 
     def __del__(self):
         self.client.ShopifyResource.clear_session()
@@ -42,16 +42,23 @@ class ShopifyClient:
     def get_locations(self) -> list[Location]:
         return self.call_with_rate_limit(self.client.Location.find)
 
-    def set_inventory_level(self, variant: Variant, quantity: int, location: Location | None = None):
+    def find_location_by_name(self, location_name: str) -> Location | None:
+        return next((loc for loc in self.locations if location_name in loc.name), None)
+
+    def set_inventory_level(self, variant: Variant, quantity: int, location: Location | str | None = None):
         if location is None:
             location = self.default_location
+        elif isinstance(location, str):
+            location = self.find_location_by_name(location) or self.default_location
 
-        self.call_with_rate_limit(
+        inventory_level = self.call_with_rate_limit(
             self.client.InventoryLevel.set,
             inventory_item_id=variant.inventory_item_id,
             location_id=location.id,
             available=quantity
         )
+
+        return dict(location=location, inventory_level=inventory_level)
 
     def products(self):
         return self._iter_objects(self.client.Product)
@@ -62,6 +69,8 @@ class ShopifyClient:
             yield variant
 
     def _iter_objects(self, resource: Type[ShopifyResource]) -> Iterator:
+        total_objects_count = self.call_with_rate_limit(resource.count)
+        self.logger.info("The total %ss count is %s" % (resource.__name__.lower(), total_objects_count))
         objects = self.call_with_rate_limit(resource.find, limit=self.page_size)
         pages = PaginatedIterator(objects)
 
@@ -74,14 +83,7 @@ class ShopifyClient:
 
                 if self.callback is not None:
                     if not self.callback():
-                        break
-
-            # req_count, rate = map(int, page.metadata['headers']['X-Shopify-Shop-Api-Call-Limit'].split('/'))
-
-            # if req_count == rate:
-            #     self.logger.warning("The API rate limit has been exceeded. Waiting for %s seconds",
-            #                         self.RATE_LIMIT_WAIT_TIME)
-            #     sleep(self.RATE_LIMIT_WAIT_TIME)
+                        return
 
     def save(self, object: ShopifyResource):
         return self.call_with_rate_limit(object.save)

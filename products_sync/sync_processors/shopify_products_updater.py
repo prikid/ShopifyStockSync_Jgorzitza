@@ -57,9 +57,10 @@ class UpdateLogManager:
             )
         ))
 
-    def quantity_changed(self):
+    def quantity_changed(self, location_name: str):
         self._log_item.changes.update(dict(
             quantity=dict(
+                location=location_name,
                 old=self.shopify_variant_data[SHOPIFY_FIELDS.quantity],
                 new=self.supplier_product[SHOPIFY_FIELDS.quantity]
             )
@@ -83,9 +84,11 @@ class UpdateLogManager:
                 )
 
             if 'quantity' in self._log_item.changes:
-                msg += 'quantity: %s->%s; ' % (
+                msg += 'quantity: %s->%s (%s); ' % (
                     self._log_item.changes['quantity']['old'],
-                    self._log_item.changes['quantity']['new']
+                    self._log_item.changes['quantity']['new'],
+                    self._log_item.changes['quantity']['location'],
+
                 )
             return msg
 
@@ -153,14 +156,15 @@ class ShopifyVariantUpdater:
             self._updated = True
         else:
             try:
-                self.shopify_client.set_inventory_level(
+                res = self.shopify_client.set_inventory_level(
                     self.shopify_variant,
-                    self.suppliers_product[SHOPIFY_FIELDS.quantity]
+                    self.suppliers_product[SHOPIFY_FIELDS.quantity],
+                    location=self.suppliers_product['location_name']
                 )
             except Exception as e:
                 logger.error("Unable to update quantity of the shopify variant ID=%s - %s", self.shopify_variant.id, e)
             else:
-                self.log_mngr.quantity_changed()
+                self.log_mngr.quantity_changed(location_name=res['location'].name)
                 self._updated = True
 
     @property
@@ -237,15 +241,29 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                     logger.warning("The shopify barcode is invalid: %s", variant.barcode)
                     continue
 
-                suppliers_products = self.supplier_products_df[
-                    self.supplier_products_df[SHOPIFY_FIELDS.barcode] == variant.barcode
-                    ]
+                supplier_product = self.find_supplier_product(variant.barcode, variant.sku)
 
-                if not suppliers_products.empty:
-                    supplier_product = suppliers_products.iloc[0].to_dict()
+                if supplier_product:
                     supplier_product['price'] = round(float(supplier_product['price']), 2)
-
                     ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
                         dry=dry)
 
         return self
+
+    def find_supplier_product(self, barcode: str, sku: str = None) -> dict | None:
+        suppliers_products = self.supplier_products_df[
+            self.supplier_products_df[SHOPIFY_FIELDS.barcode] == barcode
+            ]
+
+        if suppliers_products.empty:
+            # product with such barcode not found in the suppliers data
+            return None
+
+        supplier_product = suppliers_products.iloc[0]
+
+        if sku is not None:
+            narrowed_by_sku = suppliers_products[suppliers_products['sku'] == sku]
+            if not narrowed_by_sku.empty:
+                supplier_product = narrowed_by_sku.iloc[0]
+
+        return supplier_product.to_dict()

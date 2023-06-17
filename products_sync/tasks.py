@@ -2,6 +2,7 @@ import logging
 
 from celery import shared_task, chain
 from celery.contrib.abortable import AbortableTask
+from celery_singleton import Singleton
 
 from app import celery
 from products_sync import logger
@@ -27,6 +28,10 @@ class CeleryLogHandler(logging.Handler):
         )
 
 
+class SingletonAbortableTask(AbortableTask, Singleton):
+    pass
+
+
 @shared_task(bind=True)
 def run_all_sync_for_all_active_sources(self):
     source_ids = StockDataSource.objects.filter(active=True).values_list('id', flat=True)
@@ -36,7 +41,7 @@ def run_all_sync_for_all_active_sources(self):
     task_chain.delay()
 
 
-@shared_task(bind=True, base=AbortableTask)
+@shared_task(bind=True, base=SingletonAbortableTask, lock_expiry=60 * 60 * 4)
 def sync_products(self_task, source_id: int, dry: bool):
     # TODO do not allow to put in queue or run a new task if the one is still running
 

@@ -77,3 +77,12 @@ class TestShopifyProductsUpdater(APITestCase):
         pd.set_option('display.width', None)
 
         print(gdf)
+
+    def test_iter_variants(self):
+        shopify_client = ShopifyClient(
+            shop_name=settings.SHOPIFY_SHOP_NAME,
+            api_token=settings.SHOPIFY_API_TOKEN
+        )
+
+        for idx, variant in enumerate(shopify_client.variants(), 1):
+            pass

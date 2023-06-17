@@ -35,7 +35,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
     class FieldsMap(BaseProductsSyncProcessor.FieldsMap):
         BARCODE = ('unit_barcode', str)
         PRICE = ('m1', float)
-        INVENTORY_QUANTITY = ('qty_onhand', int)
+        INVENTORY_QUANTITY = ('quantity_onhand', int)
         SKU = ('product_number', str)
 
     @cached_property
@@ -136,7 +136,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
 
                     # FIXME
                     # "identifier": {
-                    #     "changedsince": "06-01-2023 00:00:00"
+                    #     "changedsince": "06-15-2023 00:00:00"
                     # }
                 }
 

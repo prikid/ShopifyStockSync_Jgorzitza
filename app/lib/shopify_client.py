@@ -1,3 +1,4 @@
+from http.client import IncompleteRead
 from time import sleep
 from typing import Type, Iterator
 import logging
@@ -74,16 +75,20 @@ class ShopifyClient:
         objects = self.call_with_rate_limit(resource.find, limit=self.page_size)
         pages = PaginatedIterator(objects)
 
-        for page_idx, page in enumerate(pages):
-            self.logger.info("Page %s containing %s items has been received from the Shopify store", page_idx + 1,
-                             len(page))
+        try:
+            for page_idx, page in enumerate(pages):
+                self.logger.info("Page %s containing %s items has been received from the Shopify store", page_idx + 1,
+                                 len(page))
 
-            for obj in page:
-                yield obj
+                for obj in page:
+                    yield obj
 
-                if self.callback is not None:
-                    if not self.callback():
-                        return
+                    if self.callback is not None:
+                        if not self.callback():
+                            return
+        except IncompleteRead as e:
+            logging.error("%s. Sleeping for 5s ...", e)
+            sleep(5)
 
     def save(self, object: ShopifyResource):
         return self.call_with_rate_limit(object.save)

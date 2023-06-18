@@ -151,7 +151,8 @@ export default {
           )
           .catch((err) => {
             console.log(err);
-            if (err instanceof AxiosError && ["ERR_NETWORK", "ERR_TIMED_OUT", "ERR_NETWORK_IO_SUSPENDED"].includes(err.code)) {
+            this.writeToLog(err)
+            if (err instanceof AxiosError && ["ERR_NETWORK", "ERR_TIMED_OUT", "ERR_NETWORK_IO_SUSPENDED", "ERR_NETWORK_CHANGED"].includes(err.code)) {
               setTimeout(this.checkProgress, 5000);
             }
           });

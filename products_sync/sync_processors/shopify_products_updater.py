@@ -1,6 +1,5 @@
 import re
 import sqlite3
-import time
 from abc import ABC, abstractmethod
 from enum import StrEnum
 
@@ -257,6 +256,8 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                     supplier_product['price'] = round(float(supplier_product['price']), 2)
                     ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
                         dry=dry)
+
+        logger.info("Done!")
 
         return self
 

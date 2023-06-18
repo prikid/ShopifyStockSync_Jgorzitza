@@ -157,7 +157,7 @@ LOGGING = {
 
     'formatters': {
         'simple': {
-            'format': '%(asctime)s %(name)s %(module)s: %(message)s',
+            'format': '%(asctime)s ShopifySyncApp %(module)s: %(message)s',
             'datefmt': '%Y-%m-%dT%H:%M:%S',
         },
     },

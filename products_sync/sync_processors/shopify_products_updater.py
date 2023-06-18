@@ -1,4 +1,5 @@
 import re
+import sqlite3
 import time
 from abc import ABC, abstractmethod
 from enum import StrEnum
@@ -206,7 +207,13 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         self.source_name = source_name
         self.shopify_client = shopify_client
-        self.supplier_products_df = supplier_products_df
+
+        # using sqlite to improve search performance
+        logger.info('Indexing suppliers data for search...')
+        self.sqlite_conn = sqlite3.connect(':memory:')
+        supplier_products_df.to_sql('supplier_products', self.sqlite_conn)
+        self.sqlite_conn.execute("CREATE INDEX barcode_idx ON supplier_products (barcode)")
+
         self.gid = None
 
     def process(self, dry: bool = True):
@@ -248,18 +255,16 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
                 if supplier_product:
                     supplier_product['price'] = round(float(supplier_product['price']), 2)
-                    ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
-                        dry=dry)
+                    # ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
+                    #     dry=dry)
 
         return self
 
     def find_supplier_product(self, barcode: str, sku: str = None) -> dict | None:
-        suppliers_products = self.supplier_products_df.loc[
-            self.supplier_products_df[SHOPIFY_FIELDS.barcode].values == barcode
-            ]
+        query = "SELECT * FROM supplier_products WHERE barcode = '%(barcode)s'"
+        suppliers_products = pd.read_sql_query(query, self.sqlite_conn, params={'barcode': barcode})
 
         if suppliers_products.empty:
-            # product with such barcode not found in the suppliers data
             return None
 
         supplier_product = suppliers_products.iloc[0]

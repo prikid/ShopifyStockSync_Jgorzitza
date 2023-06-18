@@ -183,19 +183,20 @@ LOGGING = {
         "products_sync": {
             "handlers": ["console", "papertrail"],
             "level": DJANGO_LOG_LEVEL,
-            "propagate": True,
+            # "level": logging.DEBUG,
+            "propagate": False,
         },
 
         'django': {
             'handlers': ['console', 'papertrail'],
             'level': DJANGO_LOG_LEVEL,
-            'propagate': True
+            'propagate': False
         },
 
         'celery': {
             'handlers': ['console', 'papertrail'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
     },
 }

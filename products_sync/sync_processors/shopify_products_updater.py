@@ -261,8 +261,8 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         return self
 
     def find_supplier_product(self, barcode: str, sku: str = None) -> dict | None:
-        query = "SELECT * FROM supplier_products WHERE barcode = '%(barcode)s'"
-        suppliers_products = pd.read_sql_query(query, self.sqlite_conn, params={'barcode': barcode})
+        query = "SELECT * FROM supplier_products WHERE barcode = ?"
+        suppliers_products = pd.read_sql_query(query, self.sqlite_conn, params=[barcode])
 
         if suppliers_products.empty:
             return None

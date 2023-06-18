@@ -255,8 +255,8 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
                 if supplier_product:
                     supplier_product['price'] = round(float(supplier_product['price']), 2)
-                    # ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
-                    #     dry=dry)
+                    ShopifyVariantUpdater(variant, supplier_product, self.shopify_client, self.gid, self.source_name)(
+                        dry=dry)
 
         return self
 

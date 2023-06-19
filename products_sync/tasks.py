@@ -4,7 +4,6 @@ from celery import shared_task, chain
 from celery.contrib.abortable import AbortableTask
 from celery_singleton import Singleton
 
-from app import celery
 from products_sync import logger
 from products_sync.models import StockDataSource
 from products_sync.sync_processors import get_processor_by_source
@@ -43,8 +42,6 @@ def run_all_sync_for_all_active_sources(self):
 
 @shared_task(bind=True, base=SingletonAbortableTask, lock_expiry=60 * 60 * 4)
 def sync_products(self_task, source_id: int, dry: bool):
-    # TODO do not allow to put in queue or run a new task if the one is still running
-
     source = StockDataSource.objects.get(pk=source_id)
 
     handler = CeleryLogHandler(logging.DEBUG, self_task)

@@ -4,10 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 from decouple import config
-from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIRequestFactory, APITestCase
+from rest_framework.test import APITestCase
 
 from app import settings
 from app.lib.shopify_client import ShopifyClient
@@ -18,9 +17,12 @@ from products_sync.sync_processors.shopify_products_updater import SHOPIFY_FIELD
 class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
 
     def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str):
-        super().__init__(shopify_client, supplier_products_df, source_name)
+        random.seed()
+
         supplier_products_df[SHOPIFY_FIELDS.price] += random.randint(0, 10)
         supplier_products_df[SHOPIFY_FIELDS.quantity] += random.randint(0, 10)
+
+        super().__init__(shopify_client, supplier_products_df, source_name)
 
 
 class TestShopifyProductsUpdater(APITestCase):
@@ -37,7 +39,13 @@ class TestShopifyProductsUpdater(APITestCase):
             updater_class=ShopifyProductsUpdater_Patched
         )
 
-        processor.run_sync(dry=False)
+        processor.run_sync(dry=True)
+
+    # def test_task_singleton(self):
+    #     from tasks import sync_products
+    #
+    #     source = StockDataSource.objects.filter('')
+    #     task1 = sync_products.delay(source.id, dry)
 
     def test_download_csv(self):
         # Using the standard RequestFactory API to create a form POST request

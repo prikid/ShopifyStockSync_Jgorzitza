@@ -1,8 +1,10 @@
+from functools import cache
 from http.client import IncompleteRead
 from time import sleep
-from typing import Type, Iterator
+from typing import Type, Iterator, Iterable
 import logging
 
+import pandas as pd
 from decouple import config
 from pyactiveresource.connection import ClientError
 
@@ -32,8 +34,8 @@ class ShopifyClient:
 
         self.callback = on_page_callback
 
-        self.locations = self.get_locations()
-        self.default_location = self.find_location_by_name(self.DEFAULT_LOCATION_NAME)
+        self.locations: list = self.get_locations()
+        self.default_location: Location = self.find_location_by_name(self.DEFAULT_LOCATION_NAME)
         if self.default_location is None:
             self.default_location = self.locations[0]
 
@@ -43,8 +45,28 @@ class ShopifyClient:
     def get_locations(self) -> list[Location]:
         return self.call_with_rate_limit(self.client.Location.find)
 
+    @cache
     def find_location_by_name(self, location_name: str) -> Location | None:
         return next((loc for loc in self.locations if location_name in loc.name), None)
+
+    def get_inventory_level(self, variant: Variant, location: Location | str | None = None) -> int:
+        if location is None:
+            location = self.default_location
+        elif isinstance(location, str):
+            location = self.find_location_by_name(location) or self.default_location
+
+        try:
+            inventory_level = self.call_with_rate_limit(
+                self.client.InventoryLevel.find,
+                location_ids=location.id,
+                inventory_item_ids=variant.inventory_item_id,
+                limit=1
+            )[0]
+        except IndexError:
+            raise 'Unable to get the inventory level for the variant ID=%s and location `%s`' % (
+                variant.id, location.name)
+
+        return inventory_level.available
 
     def set_inventory_level(self, variant: Variant, quantity: int, location: Location | str | None = None):
         if location is None:
@@ -116,3 +138,13 @@ class ShopifyClient:
                 if e.code == 429:
                     continue
                 raise e
+
+    def get_inventory_levels(self, inventory_item_ids: Iterable[int], location_ids: Iterable[int]) -> pd.DataFrame:
+        inventory_levels = self.call_with_rate_limit(
+            self.client.InventoryLevel.find,
+            location_ids=','.join(map(str, location_ids)),
+            inventory_item_ids=','.join(map(str, inventory_item_ids)),
+            limit=self.page_size
+        )
+
+        return inventory_levels

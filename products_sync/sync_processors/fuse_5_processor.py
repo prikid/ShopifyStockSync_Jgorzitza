@@ -1,5 +1,4 @@
 import json
-from decimal import Decimal
 from pathlib import Path
 from typing import Type
 
@@ -130,7 +129,7 @@ class Fuse5Processor(BaseProductsSyncProcessor):
                         "m1",
                         "location_name",
                         "quantity_onhand",
-                        "all_location_qty_onhand"
+                        # "all_location_qty_onhand"
                     ],
 
                     # FIXME

@@ -215,6 +215,9 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         self.gid = None
 
+    def __del__(self):
+        self.sqlite_conn.close()
+
     def process(self, dry: bool = True):
         """
         Fetch and iterate through all variants from Shopify, compare prices and quantity

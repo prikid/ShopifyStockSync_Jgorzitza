@@ -31,7 +31,7 @@ class SingletonAbortableTask(AbortableTask, Singleton):
     pass
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, name='Sync products from all sources')
 def run_all_sync_for_all_active_sources(self):
     source_ids = StockDataSource.objects.filter(active=True).values_list('id', flat=True)
     tasks = [sync_products.si(s_id, dry=False) for s_id in source_ids]
@@ -40,7 +40,8 @@ def run_all_sync_for_all_active_sources(self):
     task_chain.delay()
 
 
-@shared_task(bind=True, base=SingletonAbortableTask, lock_expiry=60 * 60 * 4)
+@shared_task(bind=True, base=SingletonAbortableTask, lock_expiry=60 * 60 * 4,
+             name="Sync products from the source by ID")
 def sync_products(self_task, source_id: int, dry: bool):
     source = StockDataSource.objects.get(pk=source_id)
 

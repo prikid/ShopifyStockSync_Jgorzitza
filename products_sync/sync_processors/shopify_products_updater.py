@@ -153,7 +153,7 @@ class ShopifyVariantUpdater:
         else:
             self.shopify_variant.price = self.suppliers_product[SHOPIFY_FIELDS.price]
             if self.save_variant():
-                # WARNING - at this point the 'price' field of shopify_variantbecomes an str
+                # WARNING - at this point the 'price' field of shopify_variant becomes an str
                 self.log_mngr.price_changed()
                 self._updated = True
 
@@ -226,6 +226,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         self.sqlite_conn.execute("CREATE INDEX barcode_idx ON supplier_products (barcode)")
 
         self._matched_products = []
+        self._unmatched_variants = []
         self.gid = None
 
     def __del__(self):
@@ -239,7 +240,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         from products_sync.models import ProductsUpdateLog
 
-        # TODO get only needed fields by API
+        # TODO get only needed fields by API (have to solve issues with pagination when requesting specific fields)
 
         if not dry:
             try:
@@ -253,6 +254,8 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
             logger.debug("%s - Processing variant_id=%s, barcode=%s, price=%s, qty=%s", idx, variant.id,
                          variant.barcode, variant.price, variant.inventory_quantity)
 
+            is_matched = False
+
             if variant.barcode:
                 variant.barcode = re.sub(r"\D", "", variant.barcode).strip()
 
@@ -264,21 +267,52 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                     logger.warning("The shopify barcode is invalid: %s", variant.barcode)
                     continue
 
-                # s_time = time.monotonic()
                 supplier_product = self.find_supplier_product(variant.barcode, variant.sku)
-                # print(time.monotonic() - s_time)
 
                 if supplier_product:
+                    is_matched = True
                     supplier_product['price'] = round(float(supplier_product['price']), 2)
                     self._matched_products.append(self.MatchedProductsTuple(variant, supplier_product))
 
                     if len(self._matched_products) >= 250:
                         self._process_matched_products(dry)
 
+            if not is_matched:
+                self._unmatched_variants.append(variant)
+                logger.warning(
+                    "The matched product was not found in the supplier's data: "
+                    "product_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode} ".format(
+                        **variant.attributes)
+                )
+
         self._process_matched_products(dry)
+        self._save_unmatched_products_to_db_log(dry)
+
         logger.info("Done!")
 
         return self
+
+    def _save_unmatched_products_to_db_log(self, dry: bool):
+
+        if dry:
+            return
+
+        from products_sync.models import ProductsUpdateLog
+
+        ProductsUpdateLog.objects.bulk_create(
+            [
+                ProductsUpdateLog(
+                    gid=self.gid,
+                    source=self.source_name,
+                    product_id=variant.product_id,
+                    variant_id=variant.id,
+                    sku=variant.sku,
+                    changes=dict(unmatched=True)
+                )
+                for variant in self._unmatched_variants
+            ],
+            batch_size=1000
+        )
 
     def _process_matched_products(self, dry: bool):
         """

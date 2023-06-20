@@ -128,7 +128,6 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
         pd.json_normalize(df['changes'][0], sep='_')
         changes_df = pd.json_normalize(df['changes'], sep='_')
-        changes_df.columns = sorted(changes_df.columns, reverse=True)
 
         df = pd.concat([
             df.drop(columns=['gid', 'changes']),

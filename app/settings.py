@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'django_celery_beat',
+
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
@@ -211,12 +213,5 @@ SHOPIFY_API_TOKEN = config('SHOPIFY_API_TOKEN')
 CELERY_BROKER_URL = config('REDIS_URL')
 CELERY_RESULT_BACKEND = config('REDIS_URL')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-
-CELERY_BEAT_SCHEDULE = {
-    'run_all_sync_hourly': {
-        'task': 'products_sync.tasks.run_all_sync_for_all_active_sources',
-        'schedule': timedelta(minutes=config('RUN_SYNC_EVERY_MINUTES', 60, cast=int)),
-    }
-}
 
 PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS = config('PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS', default=30)

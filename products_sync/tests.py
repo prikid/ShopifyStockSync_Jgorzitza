@@ -11,6 +11,7 @@ from rest_framework.test import APITestCase
 from app import settings
 from app.lib.shopify_client import ShopifyClient
 from products_sync.sync_processors import Fuse5Processor, ShopifyProductsUpdater
+from products_sync.sync_processors.shopify_products_updater import SHOPIFY_FIELDS
 
 
 class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
@@ -18,8 +19,8 @@ class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
     def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str):
         random.seed()
 
-        # supplier_products_df[SHOPIFY_FIELDS.price] += random.randint(0, 10)
-        # supplier_products_df[SHOPIFY_FIELDS.quantity] += random.randint(0, 10)
+        supplier_products_df[SHOPIFY_FIELDS.price] += random.randint(0, 10)
+        supplier_products_df[SHOPIFY_FIELDS.quantity] += random.randint(0, 10)
 
         super().__init__(shopify_client, supplier_products_df, source_name)
 

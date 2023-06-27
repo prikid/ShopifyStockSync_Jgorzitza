@@ -167,12 +167,12 @@ LOGGING = {
 
     "handlers": {
         "console": {
-            'level': 'DEBUG',
+            'level': DJANGO_LOG_LEVEL,
             "class": "logging.StreamHandler",
         },
 
         "papertrail": {
-            'level': 'DEBUG',
+            'level': DJANGO_LOG_LEVEL,
             'class': 'logging.handlers.SysLogHandler',
             'formatter': 'simple',
         }

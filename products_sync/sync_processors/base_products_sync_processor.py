@@ -1,12 +1,8 @@
-import logging
 from abc import ABC, abstractmethod
-from enum import Enum
-from io import StringIO
 from typing import Type
 
 import pandas as pd
 
-from products_sync import logger
 from .shopify_products_updater import AbstractShopifyProductsUpdater
 
 
@@ -14,12 +10,6 @@ class AbstractProductsSyncProcessor(ABC):
     def __init__(self, params: dict, updater_class: Type["AbstractShopifyProductsUpdater"]):
         self.params = params
         self.updater_class = updater_class
-
-    class FieldsMap(Enum):
-        BARCODE: tuple
-        PRICE: tuple
-        INVENTORY_QUANTITY: tuple
-        SKU: tuple
 
     @abstractmethod
     def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
@@ -47,15 +37,6 @@ class AbstractProductsSyncProcessor(ABC):
 
 
 class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
-    class FieldsMap(AbstractProductsSyncProcessor.FieldsMap):
-        @classmethod
-        def as_dict_flipped(cls):
-            return {item.value[0]: item.name.lower() for item in cls}
-
-        @classmethod
-        def dtypes(cls):
-            return {item.value[0]: item.value[1] for item in cls}
-
     def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
         raise NotImplemented
 

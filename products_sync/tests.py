@@ -1,9 +1,7 @@
 import os
 import random
-from pathlib import Path
 
 import pandas as pd
-from decouple import config
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -27,14 +25,13 @@ class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
 
 class TestShopifyProductsUpdater(APITestCase):
     def setUp(self):
-        os.environ.setdefault('FUSE5_LOAD_DATA_FROM_FILE', 'samples/suppliers_data.csv')
         os.environ.setdefault('SHOPIFY_SHOP_NAME', 'prikidtest')
 
     def test_sync_full(self):
         processor = Fuse5Processor(
             dict(
-                API_KEY=config("FUSE5_API_KEY"),
-                API_URL=config("FUSE5_API_URL")
+                API_KEY=settings.FUSE5_API_KEY,
+                API_URL=settings.FUSE5_API_URL
             ),
             updater_class=ShopifyProductsUpdater_Patched
         )
@@ -62,7 +59,15 @@ class TestShopifyProductsUpdater(APITestCase):
     #     print(name)
 
     def test_check_csv(self):
-        df = pd.read_csv(settings.BASE_DIR / Path(config('FUSE5_LOAD_DATA_FROM_FILE')))
+        df = pd.read_csv(settings.EXPORT_CSV_FILEPATH)
+
+        df = df[df['inventory_quantity'] > 0]
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', None)
+        print(df.head())
+
+        return
 
         gdf = df.groupby('unit_barcode').agg(
             Count=('unit_barcode', 'count'),

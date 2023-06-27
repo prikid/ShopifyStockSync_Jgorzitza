@@ -57,35 +57,3 @@ def sync_products(self_task, source_id: int, dry: bool):
     task = self_task.AsyncResult(self_task.request.id)
     results = task.result | {'gid': gid}
     return results
-
-#
-# @celery.task(bind=True)
-# def test_log(self_task):
-#     def text_generator(sleep_interval: int = 1):
-#         lines = [
-#             'Little brown lady',
-#             'Jumped into the blue water',
-#             'And smiled'
-#         ]
-#         start_time = time.time()
-#         while True:
-#             for line in lines:
-#                 elapsed_time = int(time.time() - start_time)
-#                 yield f"[{elapsed_time:>10} s] {line}\n"
-#                 time.sleep(sleep_interval)
-#             yield "=========== Here we go again ===========\n"
-#
-#     handler = CeleryLogHandler(logging.DEBUG, self_task)
-#     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s:%(message)s', datefmt='%d-%m-%Y %I:%M:%S')
-#     handler.setFormatter(formatter)
-#     logger.addHandler(handler)
-#
-#     logger.info('Syncing products...')
-#
-#     for i, msg in enumerate(text_generator(), 1):
-#         logger.info(msg)
-#
-#         if i > 50:
-#             break
-#
-#     logger.info('Products were synced!')

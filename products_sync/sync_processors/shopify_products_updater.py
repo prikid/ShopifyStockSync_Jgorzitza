@@ -1,5 +1,4 @@
 import re
-import sqlite3
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from enum import StrEnum
@@ -8,6 +7,7 @@ from typing import Any
 import pandas as pd
 
 from app import settings
+from app.lib.fuse5_sqlite import Fuse5Sqlite
 from app.lib.shopify_client import ShopifyClient
 from products_sync import logger
 from shopify import Variant
@@ -40,7 +40,7 @@ class UpdateLogManager:
     def __init__(self, shopify_variant: Variant, supplier_product: dict, gid: int, source_name: str):
         from products_sync.models import ProductsUpdateLog
 
-        self.shopify_variant_data: dict = shopify_variant.attributes.copy()
+        self.shopify_variant_data: dict = shopify_variant.to_dict()
         self.supplier_product: dict = supplier_product
 
         self._log_item = ProductsUpdateLog(
@@ -176,7 +176,7 @@ class ShopifyVariantUpdater:
 
     @property
     def comparing_text_table(self) -> str:
-        shopify_variant_data = self.shopify_variant.attributes
+        shopify_variant_data = self.shopify_variant.to_dict()
         shopify_variant_data[SHOPIFY_FIELDS.quantity] = self.shopify_inventory_level
         shopify_attrs = map(shopify_variant_data.__getitem__, SHOPIFY_FIELDS)
         supplier_attrs = map(self.suppliers_product.get, SHOPIFY_FIELDS)
@@ -218,20 +218,11 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         self.source_name = source_name
         self.shopify_client = shopify_client
-
-        # using sqlite to improve search performance
-        logger.info('Indexing suppliers data for search...')
-        self.sqlite_conn = sqlite3.connect(':memory:')
-        supplier_products_df.to_sql('supplier_products', self.sqlite_conn)
-
-        self.sqlite_conn.execute("CREATE INDEX barcode_idx ON supplier_products (barcode)")
+        self.fuse5_sqlite = Fuse5Sqlite(supplier_products_df, logger)
 
         self._matched_products = []
         self._unmatched_variants = []
         self.gid = None
-
-    def __del__(self):
-        self.sqlite_conn.close()
 
     def process(self, dry: bool = True):
         """
@@ -282,13 +273,11 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                 logger.warning(
                     "The matched product was not found in the supplier's data: "
                     "product_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode} ".format(
-                        **variant.attributes)
+                        **variant.to_dict())
                 )
 
         self._process_matched_products(dry)
         self._save_unmatched_products_to_db_log(dry)
-
-        logger.info("Done!")
 
         return self
 
@@ -355,41 +344,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
             )(dry=dry)
 
     def find_supplier_product(self, shopify_variant_barcode: str, shopify_variant: Variant) -> dict | None:
-        def log_no_sku_warning(barcode: str, sku: str, products: list):
-            if len(products) > 1:
-                msg_tmpl = "A few products with the barcode %s have been found in the supplier's data, but no one " \
-                           "matched the SKU %s. Will use the first one.\n Shopify product:%s \nSupplier's products:"
-            else:
-                msg_tmpl = "A product with the barcode %s has been found in the supplier's data, but the SKU %s do " \
-                           "not match. \n\tShopify product:%s \n\tSupplier's product:"
+        shopify_variant_data = shopify_variant.to_dict() | {'barcode': shopify_variant_barcode}
+        found_product = self.fuse5_sqlite.find_product_by_barcode_and_sku(shopify_variant_data)
 
-            shopify_variant_data = "\n\t\tproduct_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode} ".format(
-                **shopify_variant.attributes)
-
-            msg = msg_tmpl % (barcode, sku, shopify_variant_data)
-
-            for product in products:
-                msg += "\n\t\tbarcode={barcode}; sku={sku}; name={product_name}".format(**product)
-
-            logger.warning(msg)
-
-        # create variants of the barcode of different length by filling leading zeros
-        barcodes = [shopify_variant_barcode.zfill(i) for i in range(len(shopify_variant_barcode), 15)]
-
-        placeholders = ','.join(['?'] * len(barcodes))
-        query = f"SELECT * FROM supplier_products WHERE barcode IN ({placeholders})"
-        supplier_products = pd.read_sql_query(query, self.sqlite_conn, params=barcodes)
-
-        if supplier_products.empty:
-            return None
-
-        found_product = supplier_products.iloc[0]
-
-        if shopify_variant.sku is not None:
-            narrowed_by_sku = supplier_products[supplier_products['sku'] == shopify_variant.sku]
-            if narrowed_by_sku.empty:
-                log_no_sku_warning(shopify_variant_barcode, shopify_variant.sku, supplier_products.to_dict("records"))
-            else:
-                found_product = narrowed_by_sku.iloc[0]
-
-        return found_product.to_dict()
+        return found_product

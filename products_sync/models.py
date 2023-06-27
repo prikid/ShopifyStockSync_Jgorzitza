@@ -40,3 +40,13 @@ class ProductsUpdateLog(models.Model):
         # TODO do not delete parts of groups with the same gid. Only delete whole groups.
         delete_time_point = today() - timedelta(days=days)
         cls.objects.filter(time__lte=delete_time_point).delete()
+
+# class Fuse5Products(models.Model):
+#     line_code = models.CharField(max_length=3)
+#     product_number = models.CharField(max_length=30)
+#     product_name = models.CharField()
+#     unit_barcode = models.CharField(max_length=20)
+#     m1 = models.FloatField()
+#     location_name = models.CharField(max_length=30)
+#     quantity_onhand = models.PositiveIntegerField()
+#     # all_location_qty_onhand = models.PositiveIntegerField()

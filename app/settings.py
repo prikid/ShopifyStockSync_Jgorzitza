@@ -67,7 +67,8 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'core',
-    'products_sync'
+    'products_sync',
+    'orders_sync'
 ]
 
 AUTH_USER_MODEL = 'core.User'
@@ -166,6 +167,7 @@ LOGGING = {
 
     "handlers": {
         "console": {
+            'level': 'DEBUG',
             "class": "logging.StreamHandler",
         },
 
@@ -189,6 +191,13 @@ LOGGING = {
             "propagate": False,
         },
 
+        "orders_sync": {
+            "handlers": ["console", "papertrail"],
+            "level": DJANGO_LOG_LEVEL,
+            # "level": logging.DEBUG,
+            "propagate": False,
+        },
+
         'django': {
             'handlers': ['console', 'papertrail'],
             'level': DJANGO_LOG_LEVEL,
@@ -197,9 +206,15 @@ LOGGING = {
 
         'celery': {
             'handlers': ['console', 'papertrail'],
-            'level': 'INFO',
+            'level': DJANGO_LOG_LEVEL,
             'propagate': False,
         },
+
+        # 'django_celery_beat': {
+        #     'handlers': ['console', 'papertrail'],
+        #     'level': DJANGO_LOG_LEVEL,
+        #     'propagate': False,
+        # },
     },
 }
 
@@ -210,8 +225,17 @@ if papertrail_destination := config('PAPERTRAIL_DESTINATION', None):
 SHOPIFY_SHOP_NAME = config('SHOPIFY_SHOP_NAME')
 SHOPIFY_API_TOKEN = config('SHOPIFY_API_TOKEN')
 
+FUSE5_API_KEY = config('FUSE5_API_KEY', None)
+FUSE5_API_URL = config('FUSE5_API_URL', None)
+FUSE5_ACCOUNT_NUMBER = config('FUSE5_ACCOUNT_NUMBER', None)
+
+EXPORT_CSV_FILEPATH = BASE_DIR / "data/fuse5_products.csv"
+FUSE5_UPDATE_CSV_FROM_REMOTE = config('FUSE5_UPDATE_CSV_FROM_REMOTE', True, cast=bool)
+FUSE5_LOAD_DATA_CHANGED_SINCE = config('FUSE5_LOAD_DATA_CHANGED_SINCE', None)
+
 CELERY_BROKER_URL = config('REDIS_URL')
 CELERY_RESULT_BACKEND = config('REDIS_URL')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS = config('PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS', default=30)
+ORDERS_SYNC_DELETE_LOGS_OLDER_DAYS = config('ORDERS_SYNC_DELETE_LOGS_OLDER_DAYS', default=30)

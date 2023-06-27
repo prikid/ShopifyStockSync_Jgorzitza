@@ -6,7 +6,7 @@ import logging
 
 import pandas as pd
 from decouple import config
-from pyactiveresource.connection import ClientError
+from pyactiveresource.connection import ClientError, ResourceNotFound
 
 import shopify
 from shopify import ShopifyResource, Variant, Location, Limits
@@ -48,6 +48,10 @@ class ShopifyClient:
     @cache
     def find_location_by_name(self, location_name: str) -> Location | None:
         return next((loc for loc in self.locations if location_name in loc.name), None)
+
+    @cache
+    def find_location_by_id(self, location_id: int) -> Location | None:
+        return next((loc for loc in self.locations if location_id == loc.id), None)
 
     def get_inventory_level(self, variant: Variant, location: Location | str | None = None) -> int:
         if location is None:
@@ -91,16 +95,23 @@ class ShopifyClient:
             variant.price = float(variant.price)
             yield variant
 
-    def _iter_objects(self, resource: Type[ShopifyResource]) -> Iterator:
-        total_objects_count = self.call_with_rate_limit(resource.count)
+    def orders(self, since_id: int = None, **params):
+        if since_id is not None:
+            params['since_id'] = since_id
+
+        return self._iter_objects(self.client.Order, **params)
+
+    def _iter_objects(self, resource: Type[ShopifyResource], **params) -> Iterator:
+        total_objects_count = self.call_with_rate_limit(resource.count, **params)
         self.logger.info("The total %ss count is %s" % (resource.__name__.lower(), total_objects_count))
-        objects = self.call_with_rate_limit(resource.find, limit=self.page_size)
+
+        objects = self.call_with_rate_limit(resource.find, limit=self.page_size, **params)
         pages = PaginatedIterator(objects)
 
         try:
             for page_idx, page in enumerate(pages):
-                self.logger.info("Page %s containing %s items has been received from the Shopify store", page_idx + 1,
-                                 len(page))
+                self.logger.info("Page %s containing %s %ss has been received from the Shopify store", page_idx + 1,
+                                 len(page), resource.__name__.lower())
 
                 for obj in page:
                     yield obj
@@ -148,3 +159,11 @@ class ShopifyClient:
         )
 
         return inventory_levels
+
+    def get_variant(self, variant_id: int) -> Variant | None:
+        if variant_id is None:
+            return None
+        try:
+            return self.call_with_rate_limit(self.client.Variant.find, variant_id)
+        except ResourceNotFound:
+            return None

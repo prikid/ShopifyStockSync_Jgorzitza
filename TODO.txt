@@ -1,0 +1,5 @@
+1. Use PostgresDB table for storing Fuse5 CSV export.
+    a. Load CSV export from Fuse5 to temporary PostgresDB table by copy_from() command and then do UPSERT to the main table.
+    b. Use modifyed_at column in the Fuse5 table and use it last max value to get from the Fuse5 only records that was modifyed scince that date.
+
+2. Use webhooks for creating orders

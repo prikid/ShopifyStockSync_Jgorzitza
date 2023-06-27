@@ -3,6 +3,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as OriginalUserAdmin
 from django.utils.translation import gettext_lazy as _
+from django_celery_beat.admin import PeriodicTaskAdmin as OriginalPeriodicTaskAdmin
+from django_celery_beat.models import PeriodicTask
 
 from .models import User
 
@@ -41,3 +43,11 @@ class UserAdmin(OriginalUserAdmin):
     list_display = ("email", "first_name", "last_name", "is_staff")
     search_fields = ("email", "first_name", "last_name")
     ordering = ("id",)
+
+
+class PeriodicTaskAdmin(OriginalPeriodicTaskAdmin):
+    list_filter = ()
+
+
+admin.site.unregister(PeriodicTask)
+admin.site.register(PeriodicTask, PeriodicTaskAdmin)

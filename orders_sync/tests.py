@@ -35,7 +35,7 @@ class TestFuse5OrdersSyncProcessor(TestCase):
             shopify_client=self.shopify_client
         )
 
-        processor.run_sync(status=OrderStatuses.ANY)
+        processor.run_sync(status=OrderStatuses.OPEN)
 
     def test_create_order(self):
         # logging.basicConfig(level=logging.DEBUG)

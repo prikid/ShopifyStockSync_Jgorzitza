@@ -85,8 +85,11 @@ class Fuse5CSV:
     def get_data_from_remote(self, changed_since: datetime = None):
         self.logger.info("Loading suppliers data (may takes a few minutes)...")
         csv_url = self.fuse5_client.export_to_csv(Fuse5FieldsMap.original_fields(), changed_since=changed_since)
-        self.logger.info('The file is ready. Downloading... - %s', csv_url)
 
-        df = Fuse5CSV.read_csv(csv_url)
+        self.logger.info('The file is ready. Downloading... - %s', csv_url)
+        df = self.read_csv(csv_url)
+
+        self.logger.info('Saving csv...')
         self.save_csv(df)
+
         return df

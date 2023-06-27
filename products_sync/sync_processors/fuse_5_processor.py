@@ -34,7 +34,10 @@ class Fuse5Processor(BaseProductsSyncProcessor):
         super().__init__(params, updater_class)
 
         assert 'API_KEY' in params, 'API_URL' in params
-        self.fuse5csv = Fuse5CSV(fuse5_client=Fuse5Client(params['API_KEY'], params['API_URL']))
+        self.fuse5csv = Fuse5CSV(
+            fuse5_client=Fuse5Client(params['API_KEY'], params['API_URL']),
+            logger=logger
+        )
         self.updater_class = updater_class
 
     @cached_property

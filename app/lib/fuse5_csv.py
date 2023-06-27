@@ -46,8 +46,8 @@ class Fuse5FieldsMap(BaseFieldsMap):
 class Fuse5CSV:
     FILEPATH = EXPORT_CSV_FILEPATH
 
-    def __init__(self, fuse5_client: Fuse5Client):
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, fuse5_client: Fuse5Client, logger: logging.Logger = None):
+        self.logger = logger or logging.getLogger(__name__)
         self.fuse5_client = fuse5_client
 
     @staticmethod

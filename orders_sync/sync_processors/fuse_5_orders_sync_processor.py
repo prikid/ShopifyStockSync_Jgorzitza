@@ -69,7 +69,7 @@ class Fuse5OrdersSyncProcessor:
 
         self.fuse5_account_number = settings.FUSE5_ACCOUNT_NUMBER
         self.fuse5 = Fuse5Client(params['API_KEY'], params['API_URL'])
-        self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5)
+        self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5, logger=logger)
         self.fuse5_locations = self.fuse5.get_locations()
         self.fuse5_default_location = next(iter(self.fuse5_locations), None)
 

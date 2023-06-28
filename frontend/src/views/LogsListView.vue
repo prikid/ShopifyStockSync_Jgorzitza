@@ -1,6 +1,8 @@
 <template>
   <div class="container">
-    <b-table :data="logGroups" :loading="loading">
+    <b-tabs type="is-boxed" :animated="false">
+      <b-tab-item label="Products sync">
+         <b-table :data="logGroups" :loading="loading">
       <b-table-column field="id" label="ID" v-slot="props">
         {{ props.row.gid }}
       </b-table-column>
@@ -19,6 +21,14 @@
       </b-table-column>
 
     </b-table>
+      </b-tab-item>
+      <b-tab-item label="Orders sync">
+        <b-table>
+
+        </b-table>
+      </b-tab-item>
+    </b-tabs>
+
   </div>
 
 </template>

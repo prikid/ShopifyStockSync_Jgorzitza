@@ -15,7 +15,8 @@ RUN apk --update add --no-cache bash libstdc++ libpq git \
     && mkdir $WORKDIR/static \
     && mkdir $WORKDIR/static/admin \
     && mkdir $WORKDIR/static/rest_framework \
-    && mkdir $WORKDIR/media
+    && mkdir $WORKDIR/media \
+    && mkdir $WORKDIR/data
 
 
 RUN pip install -r requirements.txt \

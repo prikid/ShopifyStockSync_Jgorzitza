@@ -1,68 +1,65 @@
 <template>
-  <div id="app">
-    <section class="hero is-fullheight">
-      <div class="hero-head">
-        <b-navbar>
-          <template #brand>
-            <b-navbar-item tag="router-link" :to="{ path: '/' }">
-              <img
-                  src="https://cdn.shopify.com/s/files/1/0289/7212/2147/files/OneguylogotransparentBG_ca79c89e-b8f4-42aa-bafb-563233510a38.png"
-                  alt="OneGuyGarage products and orders sync"
-              >
-            </b-navbar-item>
-          </template>
-          <template #start>
-            <b-navbar-item>
-              <router-link to="/dashboard">Dashboard</router-link>
-            </b-navbar-item>
-          </template>
+  <div id="app" class="hero is-fullheight">
+    <b-navbar>
+      <template #brand>
+        <b-navbar-item tag="router-link" :to="{ path: '/' }">
+          <img
+              src="https://cdn.shopify.com/s/files/1/0289/7212/2147/files/OneguylogotransparentBG_ca79c89e-b8f4-42aa-bafb-563233510a38.png"
+              alt="OneGuyGarage products and orders sync"
+          >
+        </b-navbar-item>
+      </template>
+      <template #start>
+        <b-navbar-item>
+          <router-link to="/dashboard">Dashboard</router-link>
+        </b-navbar-item>
+      </template>
 
-          <template #end>
-            <b-navbar-item>
-              <router-link to="/logs">Logs</router-link>
-            </b-navbar-item>
+      <template #end>
+        <template v-if="$store.getters.isAuthenticated">
+          <b-navbar-item>
+            <router-link to="/logs">Logs</router-link>
+          </b-navbar-item>
+        </template>
 
-            <b-navbar-item tag="div">
+        <b-navbar-item tag="div">
 
-              <b-button v-if="!$store.getters.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>
-              <b-button v-else @click="logout">Logout</b-button>
-            </b-navbar-item>
-          </template>
-        </b-navbar>
+          <b-button v-if="!$store.getters.isAuthenticated" @click="isLoginModalActive = true">Log in</b-button>
+          <b-button v-else @click="logout">Logout</b-button>
+        </b-navbar-item>
+      </template>
+    </b-navbar>
 
-        <b-modal
-            v-model="isLoginModalActive"
-            has-modal-card
-            trap-focus
-            :destroy-on-hide="false"
-            aria-role="dialog"
-            aria-label="Login"
-            close-button-aria-label="Close"
-            aria-modal
-        >
-          <template #default="props">
-            <login-form
-                :is-modal-mode="true"
-                @close="isLoginModalActive=false"
-                @authenticated="on_authenticated"
-                @authentication_error="on_authentication_error"
-            />
-          </template>
-        </b-modal>
-      </div>
-      <div class="hero-body">
-        <router-view/>
-      </div>
+    <b-modal
+        v-model="isLoginModalActive"
+        has-modal-card
+        trap-focus
+        :destroy-on-hide="false"
+        aria-role="dialog"
+        aria-label="Login"
+        close-button-aria-label="Close"
+        aria-modal
+    >
+      <template #default="props">
+        <login-form
+            :is-modal-mode="true"
+            @close="isLoginModalActive=false"
+            @authenticated="on_authenticated"
+            @authentication_error="on_authentication_error"
+        />
+      </template>
+    </b-modal>
 
-      <div class="hero-foot">
-        <footer class="footer">
-          <small class="is-pulled-right">
-            <span>Copyright ©2023</span>
-          </small>
-        </footer>
-
-      </div>
+    <section class="section">
+      <router-view/>
     </section>
+
+    <footer class="footer is-flex-align-items-flex-end mt-auto">
+      <small class="is-pulled-right">
+        <span>Copyright ©2023</span>
+      </small>
+    </footer>
+
   </div>
 </template>
 

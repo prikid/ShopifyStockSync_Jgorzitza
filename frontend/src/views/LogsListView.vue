@@ -2,29 +2,40 @@
   <div class="container">
     <b-tabs type="is-boxed" :animated="false">
       <b-tab-item label="Products sync">
-         <b-table :data="logGroups" :loading="loading">
-      <b-table-column field="id" label="ID" v-slot="props">
-        {{ props.row.gid }}
-      </b-table-column>
+        <b-table :data="products_log_groups" :loading="loading">
+          <b-table-column field="id" label="ID" v-slot="props">
+            {{ props.row.gid }}
+          </b-table-column>
 
-      <b-table-column field="time" label="Time" v-slot="props">
-        {{ formatTime(props.row.time) }}
-      </b-table-column>
+          <b-table-column field="time" label="Time" v-slot="props">
+            {{ formatTime(props.row.time) }}
+          </b-table-column>
 
-      <b-table-column field="source" label="Source" v-slot="props">
-        {{ props.row.source }}
-      </b-table-column>
+          <b-table-column field="source" label="Source" v-slot="props">
+            {{ props.row.source }}
+          </b-table-column>
 
-      <b-table-column v-slot="props">
-        <b-button @click="downloadLogCsv(props.row)" label="Download CSV"
-                  type="is-secondary" size="is-small" class="is-pulled-right"/>
-      </b-table-column>
+          <b-table-column v-slot="props">
+            <b-button @click="downloadLogCsv(props.row, 'products')" label="Download CSV"
+                      type="is-secondary" size="is-small" class="is-pulled-right"/>
+          </b-table-column>
 
-    </b-table>
+        </b-table>
       </b-tab-item>
       <b-tab-item label="Orders sync">
-        <b-table>
+        <b-table :data="orders_log_groups" :loading="loading">
+          <b-table-column field="id" label="ID" v-slot="props">
+            {{ props.row.gid }}
+          </b-table-column>
 
+          <b-table-column field="time" label="Time" v-slot="props">
+            {{ formatTime(props.row.time) }}
+          </b-table-column>
+
+          <b-table-column v-slot="props">
+            <b-button @click="downloadLogCsv(props.row, 'orders')" label="Download CSV"
+                      type="is-secondary" size="is-small" class="is-pulled-right"/>
+          </b-table-column>
         </b-table>
       </b-tab-item>
     </b-tabs>
@@ -43,18 +54,22 @@ export default {
 
   data() {
     return {
-      logGroups: [],
+      products_log_groups: [],
+      orders_log_groups: [],
       loading: false
     }
   },
 
-  mounted() {
-    this.getLogGroups()
+  async mounted() {
+    this.loading = true
+    this.products_log_groups = await this.getLogGroups('products')
+    this.orders_log_groups = await this.getLogGroups('orders')
+    this.loading = false
   },
 
   methods: {
-    downloadLogCsv(row) {
-      const url = `/api/logs/download-csv/${row.gid}`
+    downloadLogCsv(row, type) {
+      const url = `/api/${type}_sync_logs/download-csv/${row.gid}`
       this.downloadFile(url)
     },
 
@@ -72,18 +87,10 @@ export default {
 
     },
 
-    async getLogGroups() {
-      this.loading = true
-      axios.get('/api/logs/groups')
-          .then(({data}) => {
-            this.logGroups = data
-            this.loading = false
-          })
-          .catch((error) => {
-            this.logGroups = []
-            this.loading = false
-            throw error
-          })
+    async getLogGroups(type) {
+      const res = await axios.get(`/api/${type}_sync_logs/groups`);
+      return res.data
+
     }
   }
 }

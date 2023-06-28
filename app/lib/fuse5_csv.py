@@ -35,7 +35,7 @@ class BaseFieldsMap(Enum):
 
 class Fuse5FieldsMap(BaseFieldsMap):
     BARCODE = ('unit_barcode', str)
-    PRICE = ('m1', float)
+    PRICE = ('m6', float)
     INVENTORY_QUANTITY = ('quantity_onhand', int)
     SKU = ('product_number', str)
     LINE_CODE = ('line_code', str)

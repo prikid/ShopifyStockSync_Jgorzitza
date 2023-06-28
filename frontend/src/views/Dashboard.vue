@@ -87,7 +87,7 @@ export default {
   methods: {
 
     downloadLogCsv() {
-      const url = `/api/logs/download-csv/${this.log_group_id}`
+      const url = `/api/product_sync_logs/download-csv/${this.log_group_id}`
       this.downloadFile(url)
     },
 

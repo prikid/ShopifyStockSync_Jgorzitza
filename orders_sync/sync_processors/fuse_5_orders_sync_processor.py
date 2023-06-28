@@ -69,12 +69,14 @@ class Fuse5OrdersSyncProcessor:
 
         self.fuse5_account_number = settings.FUSE5_ACCOUNT_NUMBER
         self.fuse5 = Fuse5Client(params['API_KEY'], params['API_URL'])
-        self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5, logger=logger)
         self.fuse5_locations = self.fuse5.get_locations()
         self.fuse5_default_location = next(iter(self.fuse5_locations), None)
 
+        self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5, logger=logger)
+
+        update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5csv.exists()
         self.fuse5_sqlite = Fuse5Sqlite(
-            df=self.fuse5csv.get_data(update_from_remote=settings.FUSE5_UPDATE_CSV_FROM_REMOTE),
+            df=self.fuse5csv.get_data(update_from_remote=update_from_remote),
             logger=logger
         )
 
@@ -225,7 +227,7 @@ class Fuse5OrdersSyncProcessor:
 
                     fuse5_products.append(f5_product)
             else:
-                logger.error("Unable to find product variant ID=%s from the order ID=%s (%s)",
-                             item.variant_id, shopify_order.id, shopify_order.order_number)
+                logger.warning("Can't find product variant ID=%s from the order ID=%s (%s)",
+                               item.variant_id, shopify_order.id, shopify_order.order_number)
 
         return fuse5_products

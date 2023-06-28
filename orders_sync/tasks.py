@@ -23,6 +23,4 @@ def sync_orders(self_task, status: OrderStatuses = OrderStatuses.OPEN):
     )
 
     gid = processor.run_sync(status=status)
-    task = self_task.AsyncResult(self_task.request.id)
-    results = task.result | {'gid': gid}
-    return results
+    return {'gid': gid}

@@ -201,20 +201,14 @@ LOGGING = {
         'django': {
             'handlers': ['console', 'papertrail'],
             'level': DJANGO_LOG_LEVEL,
-            'propagate': False
+            'propagate': True
         },
 
         'celery': {
             'handlers': ['console', 'papertrail'],
             'level': DJANGO_LOG_LEVEL,
-            'propagate': False,
+            'propagate': True  # important to be True
         },
-
-        # 'django_celery_beat': {
-        #     'handlers': ['console', 'papertrail'],
-        #     'level': DJANGO_LOG_LEVEL,
-        #     'propagate': False,
-        # },
     },
 }
 

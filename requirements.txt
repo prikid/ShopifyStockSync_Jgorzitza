@@ -16,4 +16,5 @@ celery-singleton
 pyactiveresource~=2.2.2
 django-celery-beat~=2.5.0
 pydantic~=1.10.9
+colorlog~=6.7.0
 

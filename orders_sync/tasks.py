@@ -7,7 +7,7 @@ from orders_sync import logger
 from orders_sync.sync_processors.fuse_5_orders_sync_processor import Fuse5OrdersSyncProcessor, OrderStatuses
 
 
-@shared_task(bind=True, base=Singleton, lock_expiry=60 * 60 * 4, name="Sync orders from Shopify to Fuse5")
+@shared_task(bind=True, base=Singleton, lock_expiry=60 * 60, name="Sync orders from Shopify to Fuse5")
 def sync_orders(self_task, status: OrderStatuses = OrderStatuses.OPEN):
     processor = Fuse5OrdersSyncProcessor(
         params={

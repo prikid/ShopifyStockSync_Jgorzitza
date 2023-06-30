@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import logging
 from datetime import timedelta
+from logging.handlers import SysLogHandler
 from pathlib import Path
 import random
 import string
@@ -159,8 +160,21 @@ LOGGING = {
     "disable_existing_loggers": False,  # retain the default loggers
 
     'formatters': {
-        'simple': {
-            'format': '%(asctime)s ShopifySyncApp %(module)s: %(message)s',
+        'console': {
+            '()': 'colorlog.ColoredFormatter',
+            'format': '%(log_color)s[%(asctime)s: %(levelname)s/%(name)s] %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+            'log_colors': {
+                'DEBUG': 'cyan',
+                'INFO': 'green',
+                'WARNING': 'yellow',
+                'ERROR': 'red',
+                'CRITICAL': 'bold_red',
+            },
+        },
+
+        'papertrail': {
+            'format': '%(asctime)s %(name)s %(module)s: %(message)s',
             'datefmt': '%Y-%m-%dT%H:%M:%S',
         },
     },
@@ -169,46 +183,47 @@ LOGGING = {
         "console": {
             'level': DJANGO_LOG_LEVEL,
             "class": "logging.StreamHandler",
+            'formatter': 'console',
         },
 
         "papertrail": {
             'level': DJANGO_LOG_LEVEL,
             'class': 'logging.handlers.SysLogHandler',
-            'formatter': 'simple',
+            'formatter': 'papertrail',
+            'facility': SysLogHandler.LOG_LOCAL7,
+
         }
     },
 
-    "root": {
-        "handlers": ["console"],
-        "level": "WARNING",
+    'root': {
+        'handlers': ['console'],
+        'level': DJANGO_LOG_LEVEL,
     },
 
     "loggers": {
         "products_sync": {
             "handlers": ["console", "papertrail"],
             "level": DJANGO_LOG_LEVEL,
-            # "level": logging.DEBUG,
             "propagate": False,
         },
 
         "orders_sync": {
             "handlers": ["console", "papertrail"],
             "level": DJANGO_LOG_LEVEL,
-            # "level": logging.DEBUG,
             "propagate": False,
         },
 
-        'django': {
-            'handlers': ['console', 'papertrail'],
-            'level': DJANGO_LOG_LEVEL,
-            'propagate': True
-        },
+        # 'django': {
+        #     'handlers': ['console'],
+        #     'level': DJANGO_LOG_LEVEL,
+        #     'propagate': True
+        # },
 
-        'celery': {
-            'handlers': ['console', 'papertrail'],
-            'level': DJANGO_LOG_LEVEL,
-            'propagate': True  # important to be True
-        },
+        # 'celery': {
+        #     'handlers': ['console'],
+        #     'level': DJANGO_LOG_LEVEL,
+        #     'propagate': True  # important to be True
+        # },
     },
 }
 

@@ -62,6 +62,8 @@ INSTALLED_APPS = [
 
     'django_celery_beat',
 
+    'debug_toolbar',
+
     'rest_framework',
     'rest_framework.authtoken',
     'drf_spectacular',
@@ -75,6 +77,8 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'core.User'
 
 MIDDLEWARE = [
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",

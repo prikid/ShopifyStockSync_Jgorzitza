@@ -26,7 +26,9 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='api-schema'), name='api-docs'),
     path('api/user/', include('core.urls')),
     path('api/', include('products_sync.urls', namespace='products_sync')),
-    path('api/', include('orders_sync.urls', namespace='orders_sync'))
+    path('api/', include('orders_sync.urls', namespace='orders_sync')),
+
+    path("__debug__/", include("debug_toolbar.urls")),
 ]
 
 # TODO remove on production (should be served by nginx)

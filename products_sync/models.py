@@ -3,6 +3,7 @@ from datetime import timedelta
 from dateutil.utils import today
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django_cte import CTEManager
 
 from .sync_processors.custom_csv_processor import CustomCSVProcessor
 from .sync_processors.fuse_5_processor import Fuse5Processor
@@ -24,6 +25,8 @@ class StockDataSource(models.Model):
 
 
 class ProductsUpdateLog(models.Model):
+    objects = CTEManager()
+
     gid = models.PositiveBigIntegerField(db_index=True)
     source = models.CharField(max_length=30)
     time = models.DateTimeField(auto_now_add=True)

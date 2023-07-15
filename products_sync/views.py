@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django_cte import With
 
 from .models import StockDataSource, ProductsUpdateLog
 from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer
@@ -102,7 +103,10 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     @action(detail=False)
     def groups(self, request: Request) -> Response:
         # TODO paginating
-        first_rows = self.queryset.order_by('-gid', 'id').distinct('gid')
+        # first_rows = self.queryset.order_by('-gid', 'id').distinct('gid')
+
+        cte = With(self.queryset.distinct('gid'))
+        first_rows = cte.queryset().with_cte(cte).order_by('-gid', 'id')
 
         serializer = self.get_serializer(first_rows, many=True)
         return Response(serializer.data)

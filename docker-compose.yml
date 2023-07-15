@@ -19,6 +19,10 @@ x-backend: &backend
     - static_volume:/app/static
     - media_volume:/app/media
     - data_volume:/app/data
+  logging:
+    options:
+      max-size: "10m"
+      max-file: "3"
 
 services:
   frontend:
@@ -33,6 +37,10 @@ services:
     environment:
       VUE_APP_BACKEND_HOST: http://localhost
   #    restart: unless-stopped
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 
   backend:
@@ -77,6 +85,10 @@ services:
     depends_on:
       - frontend
       - backend
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
     image: postgres:15-alpine3.18
@@ -94,6 +106,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7.0-alpine
@@ -102,6 +118,10 @@ services:
     #    restart: unless-stopped
     volumes:
       - redisdata:/data
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 
 volumes:

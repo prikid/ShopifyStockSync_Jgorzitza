@@ -2,6 +2,7 @@ import pandas as pd
 from celery.result import AsyncResult
 from django.http import HttpResponse
 from django.utils.text import slugify
+from django.utils.timezone import now
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
@@ -106,36 +107,56 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         serializer = self.get_serializer(first_rows, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, url_path='download-csv/(?P<gid>\d+)')
-    def download_csv(self, request: Request, gid=None):
-        queryset = self.queryset.filter(gid=gid).order_by('id')
-        serializer = self.get_serializer(queryset, many=True)
+    @action(detail=False, url_path='download-csv/(?P<gid>\d+)/(?P<only_matched>[01])')
+    def download_csv(self, request: Request, gid=None, only_matched=None):
+        if only_matched is not None:
+            only_matched = only_matched == '1'
 
-        response = HttpResponse(content_type='text/csv')
+        # getting only first row to create a filename
+        queryset = self.queryset.filter(gid=gid).order_by('id')
+        serializer = self.get_serializer(queryset.first())
 
         # TODO use dedicated serializer to extract data for CSV
 
-        df = pd.DataFrame(serializer.data)
-        df['time'] = pd.to_datetime(df['time'])
+        if not serializer.data:
+            _time = now()
+            _source = ''
+        else:
+            r = serializer.data
+            _time = pd.to_datetime(r['time'])
+            _source = r['source']
 
-        r = df.iloc[0]
+        _type = {True: '_updated', False: '_unmatched'}.get(only_matched, '')
+
         filename = slugify(
-            "products_sync_log_%s_%s_%s" % (r['gid'], r['time'].strftime("%d%m%Y%H%M"), r['source'])
+            "products_sync_log_%s_%s_%s%s" % (gid, _time.strftime("%d%m%Y%H%M"), _source, _type)
         )
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
 
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
         response.headers['Access-Control-Expose-Headers'] = 'Content-Disposition'
 
-        pd.json_normalize(df['changes'][0], sep='_')
-        changes_df = pd.json_normalize(df['changes'], sep='_')
+        # now getting all rows
+        if only_matched is True:
+            queryset = queryset.exclude(changes__contains={'unmatched': True})
+        elif only_matched is False:
+            queryset = queryset.filter(changes__contains={'unmatched': True})
 
-        df = pd.concat([
-            df.drop(columns=['gid', 'changes']),
-            changes_df
-        ],
-            axis=1)
+        serializer = self.get_serializer(queryset, many=True)
+        df = pd.DataFrame(serializer.data, columns=ProductsUpdateLogSerializer.Meta.fields)
+        if not df.empty:
+            df['time'] = pd.to_datetime(df['time'])
+
+            pd.json_normalize(df['changes'][0], sep='_')
+            changes_df = pd.json_normalize(df['changes'], sep='_')
+
+            df = pd.concat([df, changes_df], axis=1)
 
         # noinspection PyTypeChecker
-        df.to_csv(response, index=False, date_format="%m-%d-%Y %H:%M:%S")
+        df.drop(
+            columns=['gid', 'changes', 'unmatched'], errors='ignore'
+        ).to_csv(
+            response, index=False, date_format="%m-%d-%Y %H:%M:%S"
+        )
 
         return response

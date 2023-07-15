@@ -15,10 +15,13 @@
             {{ props.row.source }}
           </b-table-column>
 
-          <b-table-column v-slot="props">
-            <b-button @click="downloadLogCsv(props.row, 'products')" label="Download CSV"
-                      type="is-secondary" size="is-small" class="is-pulled-right"/>
+          <b-table-column v-slot="props" label="Download" :centered="true">
+            <b-button @click="downloadLogCsv(props.row, true)" label="Updated CSV"
+                      type="is-secondary" size="is-small" class=" mx-2"/>
+            <b-button @click="downloadLogCsv(props.row, false)" label="Unmatched CSV"
+                      type="is-secondary" size="is-small"/>
           </b-table-column>
+
 
         </b-table>
       </b-tab-item>
@@ -33,9 +36,10 @@
           </b-table-column>
 
           <b-table-column v-slot="props">
-            <b-button @click="downloadLogCsv(props.row, 'orders')" label="Download CSV"
+            <b-button @click="downloadOrdersLogCsv(props.row)" label="Download CSV"
                       type="is-secondary" size="is-small" class="is-pulled-right"/>
           </b-table-column>
+
         </b-table>
       </b-tab-item>
     </b-tabs>
@@ -68,8 +72,14 @@ export default {
   },
 
   methods: {
-    downloadLogCsv(row, type) {
-      const url = `/api/${type}_sync_logs/download-csv/${row.gid}`
+
+    downloadOrdersLogCsv(row) {
+      const url = `/api/orders_sync_logs/download-csv/${row.gid}`
+      this.downloadFile(url)
+    },
+
+    downloadLogCsv(row, only_matched) {
+      const url = `/api/products_sync_logs/download-csv/${row.gid}/${+only_matched}`
       this.downloadFile(url)
     },
 

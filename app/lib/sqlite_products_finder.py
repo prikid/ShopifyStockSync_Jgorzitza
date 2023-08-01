@@ -4,7 +4,7 @@ import sqlite3
 import pandas as pd
 
 
-class Fuse5Sqlite:
+class SqliteProductsFinder:
     def __init__(self, df: pd.DataFrame, logger: logging.Logger = None):
         self.logger = logger or logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class Fuse5Sqlite:
         self.sqlite_conn.close()
 
     def find_product_by_barcode_and_sku(self, shopify_variant_data: dict) -> dict | None:
-        def log_no_sku_warning(products: list):
-            if len(products) > 1:
+        def log_no_sku_warning(_supplier_products: list[dict]):
+            if len(_supplier_products) > 1:
                 msg_tmpl = "A few products with the barcode %s have been found in the supplier's data, but no one " \
                            "matched the SKU %s. Will use the first one.\n Shopify product:%s \nSupplier's products:"
             else:
@@ -31,8 +31,10 @@ class Fuse5Sqlite:
 
             msg = msg_tmpl % (barcode, sku, shopify_variant_data_str)
 
-            for product in products:
-                msg += "\n\t\tbarcode={barcode}; sku={sku}; name={product_name}".format(**product)
+            for product in _supplier_products:
+                msg += "\n\t\tbarcode={barcode}; sku={sku}".format(**product)
+                if 'product_name' in product:
+                    msg += "; name=%s" % product['product_name']
 
             self.logger.warning(msg)
 

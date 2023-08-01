@@ -10,8 +10,8 @@ from .sync_processors.fuse_5_processor import Fuse5Processor
 
 
 class Processors(models.TextChoices):
-    FUSE_5_PROCESSOR = Fuse5Processor.__name__, _("Fuse 5")
-    CUSTOM_CSV_PROCESSOR = CustomCSVProcessor.__name__, _("Custom CSV")
+    FUSE_5_PROCESSOR = Fuse5Processor.__name__, _(Fuse5Processor.PROCESSOR_NAME)
+    CUSTOM_CSV_PROCESSOR = CustomCSVProcessor.__name__, _(CustomCSVProcessor.PROCESSOR_NAME)
 
 
 class StockDataSource(models.Model):
@@ -33,6 +33,7 @@ class ProductsUpdateLog(models.Model):
     sku = models.CharField()
     product_id = models.PositiveBigIntegerField(null=True)
     variant_id = models.PositiveBigIntegerField()
+    barcode = models.CharField(max_length=20, null=True)
     changes = models.JSONField()
 
     def __str__(self):
@@ -43,6 +44,16 @@ class ProductsUpdateLog(models.Model):
         # TODO do not delete parts of groups with the same gid. Only delete whole groups.
         delete_time_point = today() - timedelta(days=days)
         cls.objects.filter(time__lte=delete_time_point).delete()
+
+
+class CustomCsvData(models.Model):
+    data = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def delete_old(cls, days: int = 1):
+        delete_time_point = today() - timedelta(days=days)
+        cls.objects.filter(created_at__lte=delete_time_point).delete()
 
 # class Fuse5Products(models.Model):
 #     line_code = models.CharField(max_length=3)

@@ -11,8 +11,10 @@
         </section>
         <footer class="modal-card-foot">
           <b-button @click="onButtonClick" :label="buttonLabel" :disabled="isButtonDisabled"/>
-          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv" label="Download CSV log"
+          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv(true)" label="Download matched CSV"
                     type="is-primary"/>
+          <b-button v-if="log_group_id && !processStarted" @click="downloadLogCsv(false)" label="Download unmatched CSV"
+                    type="is-secondary"/>
         </footer>
       </div>
     </b-modal>
@@ -27,7 +29,8 @@
       </b-table-column>
 
       <b-table-column field="active" label="Run hourly" v-slot="props" centered>
-        <b-button icon-left="check"
+        <b-button v-if="props.row.processor!=='CustomCSVProcessor'"
+                  icon-left="check"
                   icon-pack="fas"
                   :type="props.row.active ? 'is-success' : 'is-dark'"
                   class="is-inverted is-shadowless"
@@ -38,11 +41,17 @@
       </b-table-column>
 
       <b-table-column v-slot="props">
-        <div class="buttons is-pulled-right">
+        <template v-if="props.row.processor==='CustomCSVProcessor'">
+          <upload-custom-csv
+              @input="(csv_id, dry, updatePrice, updateInventory) =>
+              customCsvSync(props.row, dry, csv_id, updatePrice, updateInventory)"
+          ></upload-custom-csv>
+        </template>
+
+        <div v-else class="buttons">
           <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary"/>
           <b-button @click="syncNow(props.row, false)" label="Sync now" type="is-primary"/>
         </div>
-
       </b-table-column>
     </b-table>
   </div>
@@ -52,12 +61,13 @@
 import axios, {AxiosError} from 'axios'
 import LogViewer from "@femessage/log-viewer/src/log-viewer.vue";
 import DownloadFileMixin from "@/mixins/DownloadFileMixin.vue";
+import UploadCustomCsv from "@/views/UploadCustomCsv.vue";
 
 export default {
   // TODO pagination
 
   name: 'Dashboard',
-  components: {LogViewer},
+  components: {UploadCustomCsv, LogViewer},
   mixins: [DownloadFileMixin],
 
   data() {
@@ -70,7 +80,7 @@ export default {
       log: '',
       logRowsCounter: 0,
       isButtonDisabled: false,
-      log_group_id: undefined
+      log_group_id: undefined,
     }
   },
 
@@ -86,8 +96,16 @@ export default {
 
   methods: {
 
-    downloadLogCsv() {
-      const url = `/api/product_sync_logs/download-csv/${this.log_group_id}`
+    customCsvSync(row, dry, custom_csv_data_id, updatePrice, updateInventory) {
+      this.syncNow(row, dry, {
+        custom_csv_data_id: custom_csv_data_id,
+        update_price: updatePrice,
+        update_inventory: updateInventory,
+      })
+    },
+
+    downloadLogCsv(only_matched) {
+      const url = `/api/products_sync_logs/download-csv/${this.log_group_id}/${+only_matched}`
       this.downloadFile(url)
     },
 
@@ -134,12 +152,11 @@ export default {
 
     checkProgress() {
       axios.get(`/api/task/${this.taskId}/${this.logRowsCounter}`)
-          .then(({data}) => {
-                this.writeToLog(data.logs)
+          .then((response) => {
+                const data = response.data;
+                this.writeToLog(data.logs);
 
                 if (data.complete) {
-                  // console.log(data)
-
                   this.log_group_id = data.gid
                   this.isButtonDisabled = false
                   this.processStarted = false
@@ -151,23 +168,31 @@ export default {
           )
           .catch((err) => {
             console.log(err);
-            this.writeToLog(err)
+            this.writeToLog(err.message + ": " + err.response.statusText + "; " + err.response.data['err_message'])
             if (err instanceof AxiosError && ["ERR_NETWORK", "ERR_TIMED_OUT", "ERR_NETWORK_IO_SUSPENDED", "ERR_NETWORK_CHANGED"].includes(err.code)) {
               setTimeout(this.checkProgress, 5000);
+            } else {
+              this.isButtonDisabled = false
+              this.processStarted = false
+              this.writeToLog('The process has been interrupted')
             }
           });
     },
 
-    syncNow(row, dry = false) {
+    syncNow(row, dry = false, queryParams) {
       const endpoint = dry ? 'dryrun' : 'run'
-      // const endpoint = 'testlog'
-      const url = `/api/sources/${row.id}/${endpoint}/`;
+      const url = new URL(process.env.VUE_APP_BACKEND_HOST);
+      url.pathname = `/api/sources/${row.id}/${endpoint}/`;
+
+      for (const key in queryParams) {
+        url.searchParams.append(key, queryParams[key]);
+      }
 
       this.is_log_modal_open = true
       this.processStarted = true
       this.logRowsCounter = 0
 
-      axios.post(url)
+      axios.post(url.toString())
           .then(({data}) => {
             this.taskId = data.task_id;
             setTimeout(this.checkProgress, 500);

@@ -5,6 +5,7 @@ import store from "../store";
 import LoginView from "../views/LoginView.vue";
 import NotFound from "@/views/NotFound.vue";
 import LogsListView from "@/views/LogsListView.vue";
+import UploadCustomCSV from "@/views/UploadCustomCsv.vue";
 
 Vue.use(VueRouter)
 
@@ -40,9 +41,15 @@ const routes = [
         component: LogsListView
     },
     {
+        path: '/upload-custom-csv',
+        name: 'uploadCustomCSV',
+        component: UploadCustomCSV
+    },
+    {
         path: "/:notFound",
         component: NotFound,
     },
+
 ]
 
 const router = new VueRouter({

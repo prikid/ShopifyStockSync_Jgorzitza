@@ -1,9 +1,13 @@
+import re
+
 import pandas as pd
+import redis
 from celery.result import AsyncResult
 from django.http import HttpResponse
 from django.utils.text import slugify
 from django.utils.timezone import now
-from rest_framework import mixins, viewsets
+from pyactiveresource import connection
+from rest_framework import mixins, viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -12,9 +16,23 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_cte import With
 
-from .models import StockDataSource, ProductsUpdateLog
+from app.settings import REDIS_URL
+from . import logger
+from .models import StockDataSource, ProductsUpdateLog, CustomCsvData
 from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer
 from .tasks import sync_products
+
+# Connect to the Redis server
+redis_client = redis.from_url(REDIS_URL)
+
+
+def convert_str_to_boolean(v: str):
+    if v in ('False', 'false'):
+        return False
+    elif v in ('True', 'true'):
+        return True
+
+    return v
 
 
 class StockDataSourceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
@@ -27,7 +45,10 @@ class StockDataSourceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, vie
     @action(detail=True, methods=['post'])
     def run(self, request, pk=None, dry: bool = False):
         source = self.get_object()
-        task = sync_products.delay(source.id, dry)
+
+        params = {k: convert_str_to_boolean(v) for k, v in request.query_params.items()}
+
+        task = sync_products.delay(source.id, dry, params)
 
         return Response({'task_id': task.id})
 
@@ -55,25 +76,45 @@ class ManageCeleryTask(APIView):
         :return:
         """
         task = AsyncResult(task_id)
+        state = task.state
+        redis_key = f"task_logs:{task_id}"
 
-        task_meta = task._get_task_meta()
-        state = task_meta["status"]
+        # Use LRANGE to get log items in the specified range
+        logs = redis_client.lrange(redis_key, int(from_index), -1)
 
-        logs = []
+        # Decode the log items (assuming they are stored as UTF-8 strings)
+        # logs = [item.decode('utf-8') for item in logs]
+
         gid = None
+        err_message = ''
+        status_code = status.HTTP_200_OK
 
-        result = task.get() if task.ready() else task_meta.get('result')
-        if result is not None:
-            logs = result.get('logs', [])
-            gid = result.get('gid')
+        if (result := task.result) is not None:
+            if isinstance(result, connection.Error):
+                status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+
+                if m := re.search(r"code=(\d{3})", str(result)):
+                    status_code = m[1]
+            elif isinstance(result, AssertionError):
+                status_code = status.HTTP_417_EXPECTATION_FAILED
+                err_message = str(result)
+            elif isinstance(result, dict):
+                gid = result.get('gid')
+            else:
+                status_code = status.HTTP_417_EXPECTATION_FAILED
+                err_message = "Got unexpected task result: %s" % str(result)
+
+        if err_message:
+            logger.error(err_message)
 
         # TODO use serializer
         return Response(dict(
-            logs=logs[int(from_index):],
+            logs=logs,
             gid=gid,
             state=state,
-            complete=state in ['SUCCESS', 'FAILURE']
-        ))
+            complete=task.ready(),
+            err_message=err_message
+        ), status=status_code)
 
     def delete(self, request, task_id):
         """
@@ -85,8 +126,12 @@ class ManageCeleryTask(APIView):
         """
 
         task = sync_products.AsyncResult(task_id)
-        task.abort()
-        result = task.get()
+
+        if not task.ready():
+            task.abort()
+            result = task.get()
+        else:
+            result = 'OK'
 
         # TODO use serializer
         return Response(result)
@@ -164,3 +209,34 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         )
 
         return response
+
+
+class UploadCustomCSVView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # the frontend converts a csv file to a json object, and send it to backend as data, not as a file
+        try:
+            df = pd.DataFrame(request.data['csv'])
+
+            for c in ('barcode', 'sku', 'location_name'):
+                if c in df.columns:
+                    df[c] = df[c].str.strip()
+
+            if (c := 'price') in df.columns:
+                df[c] = pd.to_numeric(df[c], downcast='float')
+
+            if (c := 'inventory_quantity') in df.columns:
+                df[c] = pd.to_numeric(df[c], downcast='integer')
+
+            rec = CustomCsvData(data=df.to_dict())
+            rec.save()
+
+        except Exception as e:
+            msg = "Unable to process CSV file"
+            logger.error(msg + ' %s', e)
+            return Response({'error': msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        CustomCsvData.delete_old()
+        return Response({'custom_csv_data_id': rec.pk}, status=status.HTTP_201_CREATED)

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app import settings
 from app.lib.fuse5_client import Fuse5Client
 from app.lib.fuse5_csv import Fuse5CSV
-from app.lib.fuse5_sqlite import Fuse5Sqlite
+from app.lib.sqlite_products_finder import SqliteProductsFinder
 from app.lib.shopify_client import ShopifyClient
 from orders_sync import logger
 from orders_sync.models import OrdersSyncLog
@@ -75,7 +75,7 @@ class Fuse5OrdersSyncProcessor:
         self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5, logger=logger)
 
         update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5csv.exists()
-        self.fuse5_sqlite = Fuse5Sqlite(
+        self.fuse5_sqlite = SqliteProductsFinder(
             df=self.fuse5csv.get_data(update_from_remote=update_from_remote),
             logger=logger
         )

@@ -8,8 +8,12 @@ import axios from 'axios'
 
 axios.defaults.baseURL = process.env.VUE_APP_BACKEND_HOST
 
-Vue.config.productionTip = false
-Vue.use(Buefy)
+Vue.config.productionTip = false;
+Vue.use(Buefy);
+
+// Vue.component('vue-csv-import', VueCsvImport);
+
+// Vue.component('my-component-name', { /* ... */ })
 
 store.dispatch("initialize")
 

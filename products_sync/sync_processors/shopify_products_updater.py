@@ -382,7 +382,9 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                 shopify_inventory_level=inventory_level,
                 shopify_client=self.shopify_client,
                 gid=self.gid,
-                source_name=self.source_name
+                source_name=self.source_name,
+                update_price=self.update_price,
+                update_inventory=self.update_inventory
             )(dry=dry)
 
     def find_supplier_product(self, shopify_variant_barcode: str, shopify_variant: Variant) -> dict | None:

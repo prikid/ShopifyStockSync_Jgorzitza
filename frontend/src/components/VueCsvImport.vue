@@ -107,7 +107,7 @@ export default {
       type: String,
     },
     mapFields: {
-      required: true,
+      type: Object,
       default: () => ({
         'barcode': 'barcode',
         'sku': 'sku',

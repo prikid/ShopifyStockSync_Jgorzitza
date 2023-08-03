@@ -181,7 +181,7 @@ export default {
 
     syncNow(row, dry = false, queryParams) {
       const endpoint = dry ? 'dryrun' : 'run'
-      const url = new URL(process.env.VUE_APP_BACKEND_HOST);
+      const url = new URL(process.env.VUE_APP_BACKEND_HOST || window.location.origin);
       url.pathname = `/api/sources/${row.id}/${endpoint}/`;
 
       for (const key in queryParams) {

@@ -253,7 +253,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         else:
             supplier_products_df['location_name'].fillna(self.shopify_client.DEFAULT_LOCATION_NAME, inplace=True)
 
-        self.sqlite_finder = SqliteProductsFinder(supplier_products_df, logger)
+        self.products_finder = SqliteProductsFinder(supplier_products_df, logger)
 
     def process(self, dry: bool = True):
         """
@@ -389,6 +389,6 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
     def find_supplier_product(self, shopify_variant_barcode: str, shopify_variant: Variant) -> dict | None:
         shopify_variant_data = shopify_variant.to_dict() | {'barcode': shopify_variant_barcode}
-        found_product = self.sqlite_finder.find_product_by_barcode_and_sku(shopify_variant_data)
+        found_product = self.products_finder.find_product_by_barcode_and_sku(shopify_variant_data)
 
         return found_product

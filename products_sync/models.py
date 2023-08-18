@@ -55,12 +55,17 @@ class CustomCsvData(models.Model):
         delete_time_point = today() - timedelta(days=days)
         cls.objects.filter(created_at__lte=delete_time_point).delete()
 
-# class Fuse5Products(models.Model):
-#     line_code = models.CharField(max_length=3)
-#     product_number = models.CharField(max_length=30)
-#     product_name = models.CharField()
-#     unit_barcode = models.CharField(max_length=20)
-#     m1 = models.FloatField()
-#     location_name = models.CharField(max_length=30)
-#     quantity_onhand = models.PositiveIntegerField()
-#     # all_location_qty_onhand = models.PositiveIntegerField()
+
+class Fuse5Products(models.Model):
+    barcode = models.CharField(max_length=20, null=True)
+    price = models.FloatField(null=True)
+    inventory_quantity = models.IntegerField(null=True)
+    sku = models.CharField(max_length=30, null=True)
+    line_code = models.CharField(max_length=3, null=True)
+    product_name = models.CharField(null=True)
+    location_name = models.CharField(max_length=30, null=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["barcode"]),
+        ]

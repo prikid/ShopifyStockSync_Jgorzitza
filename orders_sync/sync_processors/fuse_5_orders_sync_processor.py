@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from app import settings
 from app.lib.fuse5_client import Fuse5Client
-from app.lib.fuse5_csv import Fuse5CSV
+from app.lib.fuse5_remote import Fuse5CSV
 from app.lib.sqlite_products_finder import SqliteProductsFinder
 from app.lib.shopify_client import ShopifyClient
 from orders_sync import logger

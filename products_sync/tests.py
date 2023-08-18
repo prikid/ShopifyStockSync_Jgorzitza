@@ -14,13 +14,15 @@ from products_sync.sync_processors.shopify_products_updater import SHOPIFY_FIELD
 
 class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
 
-    def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str):
+    def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str,
+                 update_price: bool = True, update_inventory: bool = True):
+
         random.seed()
 
         supplier_products_df[SHOPIFY_FIELDS.price] += random.randint(0, 10)
         supplier_products_df[SHOPIFY_FIELDS.quantity] += random.randint(0, 10)
 
-        super().__init__(shopify_client, supplier_products_df, source_name)
+        super().__init__(shopify_client, supplier_products_df, source_name,  update_price, update_inventory)
 
 
 class TestShopifyProductsUpdater(APITestCase):

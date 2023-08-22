@@ -22,7 +22,7 @@ class ShopifyProductsUpdater_Patched(ShopifyProductsUpdater):
         supplier_products_df[SHOPIFY_FIELDS.price] += random.randint(0, 10)
         supplier_products_df[SHOPIFY_FIELDS.quantity] += random.randint(0, 10)
 
-        super().__init__(shopify_client, supplier_products_df, source_name,  update_price, update_inventory)
+        super().__init__(shopify_client, source_name,  update_price, update_inventory)
 
 
 class TestShopifyProductsUpdater(APITestCase):

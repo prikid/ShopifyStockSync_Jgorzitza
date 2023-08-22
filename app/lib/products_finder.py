@@ -1,21 +1,19 @@
 import logging
 import sqlite3
+from abc import abstractmethod
 
 import pandas as pd
 
 
-class SqliteProductsFinder:
-    def __init__(self, df: pd.DataFrame, logger: logging.Logger = None):
+class BaseProductsFinder:
+    table_name: str
+
+    def __init__(self, logger: logging.Logger = None):
         self.logger = logger or logging.getLogger(__name__)
 
-        self.logger.info('Indexing suppliers data for search...')
-        self.sqlite_conn = sqlite3.connect(':memory:')
-        df.to_sql('supplier_products', self.sqlite_conn)
-
-        self.sqlite_conn.execute("CREATE INDEX barcode_idx ON supplier_products (barcode)")
-
-    def __del__(self):
-        self.sqlite_conn.close()
+    @abstractmethod
+    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+        ...
 
     def find_product_by_barcode_and_sku(self, shopify_variant_data: dict) -> dict | None:
         def log_no_sku_warning(_supplier_products: list[dict]):
@@ -45,10 +43,7 @@ class SqliteProductsFinder:
 
         # create variants of the barcode of different length by filling leading zeros
         barcodes = [barcode.zfill(i) for i in range(len(barcode), 15)]
-
-        placeholders = ','.join(['?'] * len(barcodes))
-        query = f"SELECT * FROM supplier_products WHERE barcode IN ({placeholders})"
-        supplier_products = pd.read_sql_query(query, self.sqlite_conn, params=barcodes)
+        supplier_products = self.get_found_df(barcodes)
 
         if supplier_products.empty:
             return None
@@ -63,3 +58,40 @@ class SqliteProductsFinder:
                 found_product = narrowed_by_sku.iloc[0]
 
         return found_product.to_dict()
+
+
+class ProductsFinder(BaseProductsFinder):
+
+    def __init__(self, logger: logging.Logger = None):
+        super().__init__(logger)
+
+        from products_sync.models import Fuse5Products
+        self.table_name = Fuse5Products._meta.db_table
+
+    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+        from products_sync.models import Fuse5Products
+        filtered_records = Fuse5Products.objects.filter(barcode__in=barcodes)
+        df = pd.DataFrame(filtered_records.values())
+        return df
+
+
+class SqliteProductsFinder(BaseProductsFinder):
+    def __init__(self, df: pd.DataFrame, logger: logging.Logger = None):
+        super().__init__(logger)
+        self.table_name = 'supplier_products'
+
+        self.logger.info('Indexing suppliers data for search...')
+        self.sqlite_conn = sqlite3.connect(':memory:')
+        df.to_sql('supplier_products', self.sqlite_conn)
+
+        self.sqlite_conn.execute("CREATE INDEX barcode_idx ON supplier_products (barcode)")
+
+    def __del__(self):
+        self.sqlite_conn.close()
+
+    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+        placeholders = ','.join(['?'] * len(barcodes))
+        query = f"SELECT * FROM {self.table_name} WHERE barcode IN ({placeholders})"
+
+        df = pd.read_sql_query(query, self.sqlite_conn, params=barcodes)
+        return df

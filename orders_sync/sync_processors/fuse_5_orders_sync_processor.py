@@ -4,8 +4,8 @@ from pydantic import BaseModel
 
 from app import settings
 from app.lib.fuse5_client import Fuse5Client
-from app.lib.fuse5_remote import Fuse5CSV
-from app.lib.sqlite_products_finder import SqliteProductsFinder
+from app.lib.fuse5_remote import Fuse5DB
+from app.lib.products_finder import ProductsFinder
 from app.lib.shopify_client import ShopifyClient
 from orders_sync import logger
 from orders_sync.models import OrdersSyncLog
@@ -72,13 +72,15 @@ class Fuse5OrdersSyncProcessor:
         self.fuse5_locations = self.fuse5.get_locations()
         self.fuse5_default_location = next(iter(self.fuse5_locations), None)
 
-        self.fuse5csv = Fuse5CSV(fuse5_client=self.fuse5, logger=logger)
+        self.fuse5data = Fuse5DB(fuse5_client=self.fuse5, logger=logger)
 
-        update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5csv.exists()
-        self.fuse5_sqlite = SqliteProductsFinder(
-            df=self.fuse5csv.get_data(update_from_remote=update_from_remote),
-            logger=logger
-        )
+        update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5data.exists()
+        # self.products_finder = SqliteProductsFinder(
+        #     df=self.fuse5csv.get_data(update_from_remote=update_from_remote),
+        #     logger=logger
+        # )
+
+        self.products_finder = ProductsFinder(logger)
 
     def run_sync(self, since_id: int = None, status: OrderStatuses = OrderStatuses.OPEN):
         logger.info('Starting orders sync...')
@@ -214,7 +216,7 @@ class Fuse5OrdersSyncProcessor:
         fuse5_products = []
         for item in shopify_order.line_items:
             if variant := self.shopify_client.get_variant(item.variant_id):
-                if product := self.fuse5_sqlite.find_product_by_barcode_and_sku(variant.to_dict()):
+                if product := self.products_finder.find_product_by_barcode_and_sku(variant.to_dict()):
                     f5_product = Fuse5Product(
                         line_code=product['line_code'],
                         product_number=product['sku'],

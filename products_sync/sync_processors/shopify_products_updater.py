@@ -9,7 +9,7 @@ import pandas as pd
 from pyactiveresource.connection import ClientError
 
 from app import settings
-from app.lib.sqlite_products_finder import SqliteProductsFinder
+from app.lib.products_finder import ProductsFinder
 from app.lib.shopify_client import ShopifyClient
 from products_sync import logger
 from shopify import Variant
@@ -222,7 +222,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
     MatchedProductsTuple = namedtuple('MatchedProductsTuple', 'shopify_variant suppliers_product')
 
-    def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str,
+    def __init__(self, shopify_client: ShopifyClient, source_name: str,
                  update_price: bool = True, update_inventory: bool = True):
         """
         :param ShopifyClient shopify_client:
@@ -235,10 +235,10 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         if not update_inventory:
             not_required.append(SHOPIFY_FIELDS.quantity.value)
 
-        required_suppliers_fields = [item for item in list(SHOPIFY_FIELDS) if item not in not_required]
-
-        assert all(map(supplier_products_df.columns.__contains__, required_suppliers_fields)), \
-            f"Provided data should contain all of these columns - {','.join(required_suppliers_fields)}"
+        # required_suppliers_fields = [item for item in list(SHOPIFY_FIELDS) if item not in not_required]
+        #
+        # assert all(map(supplier_products_df.columns.__contains__, required_suppliers_fields)), \
+        #     f"Provided data should contain all of these columns - {','.join(required_suppliers_fields)}"
 
         self.source_name = source_name
         self.shopify_client = shopify_client
@@ -248,12 +248,13 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         self._unmatched_variants = []
         self.gid = None
 
-        if 'location_name' not in supplier_products_df.columns:
-            supplier_products_df['location_name'] = self.shopify_client.DEFAULT_LOCATION_NAME
-        else:
-            supplier_products_df['location_name'].fillna(self.shopify_client.DEFAULT_LOCATION_NAME, inplace=True)
+        # if 'location_name' not in supplier_products_df.columns:
+        #     supplier_products_df['location_name'] = self.shopify_client.DEFAULT_LOCATION_NAME
+        # else:
+        #     supplier_products_df['location_name'].fillna(self.shopify_client.DEFAULT_LOCATION_NAME, inplace=True)
 
-        self.products_finder = SqliteProductsFinder(supplier_products_df, logger)
+        # TODO location
+        self.products_finder = ProductsFinder(logger)
 
     def process(self, dry: bool = True):
         """

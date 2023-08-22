@@ -44,7 +44,10 @@ def run_all_sync_for_all_active_sources(self):
 
 @shared_task(bind=True, base=SingletonAbortableTask, lock_expiry=60 * 60 * 4,
              name="Sync products from the source by ID")
-def sync_products(self_task, source_id: int, dry: bool, params: dict = None):
+def sync_products(self_task, source_id: int, dry: bool, params=None):
+    if params is None:
+        params = {}
+
     source = StockDataSource.objects.get(pk=source_id)
 
     handler = CeleryLogHandler(logging.DEBUG, self_task)

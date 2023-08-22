@@ -71,8 +71,6 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
                 return False
             return True
 
-        suppliers_df = self.get_suppliers_df(**kwargs)
-
         if not check_if_aborted():
             return None
 
@@ -80,10 +78,11 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
 
         shopify_client = self.get_shopify_client(check_if_aborted)
 
-        updater = self.updater_class(shopify_client, suppliers_df, self.source_name,
+        updater = self.updater_class(shopify_client, self.source_name,
                                      update_price=kwargs.get('update_price', True),
                                      update_inventory=kwargs.get('update_inventory', True),
                                      )
+
         gid = updater.process(dry=dry).gid
 
         logger.info("%s products sync done!" % self.PROCESSOR_NAME)

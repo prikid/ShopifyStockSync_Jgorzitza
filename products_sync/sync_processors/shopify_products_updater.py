@@ -24,13 +24,12 @@ class SHOPIFY_FIELDS(StrEnum):
 
 class AbstractShopifyProductsUpdater(ABC):
     @abstractmethod
-    def __init__(self, shopify_client: ShopifyClient, supplier_products_df: pd.DataFrame, source_name: str,
+    def __init__(self, shopify_client: ShopifyClient, source_name: str,
                  update_price: bool = True, update_inventory: bool = True):
         self.update_inventory = update_inventory
         self.update_price = update_price
         self.source_name = source_name
         self.shopify_client = shopify_client
-        self.supplier_products_df: pd.DataFrame = supplier_products_df
         self.store_variants_df: pd.DataFrame | None = None
         self.gid: int
 

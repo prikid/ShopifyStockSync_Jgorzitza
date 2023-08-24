@@ -8,8 +8,18 @@ import pandas as pd
 class BaseProductsFinder:
     table_name: str
 
-    def __init__(self, logger: logging.Logger = None):
+    def __init__(self, logger: logging.Logger = None, default_location_name: str = None):
+        self.default_location_name = default_location_name
         self.logger = logger or logging.getLogger(__name__)
+
+    def fill_default_location(self, df: pd.DataFrame):
+        if self.default_location_name is not None:
+            if 'location_name' not in df.columns:
+                df['location_name'] = self.default_location_name
+            else:
+                df['location_name'].fillna(self.default_location_name, inplace=True)
+
+        return df
 
     @abstractmethod
     def get_found_df(self, barcodes: list) -> pd.DataFrame:
@@ -62,22 +72,30 @@ class BaseProductsFinder:
 
 class ProductsFinder(BaseProductsFinder):
 
-    def __init__(self, logger: logging.Logger = None):
-        super().__init__(logger)
+    def __init__(self, logger: logging.Logger = None, default_location_name: str = None):
+        super().__init__(logger, default_location_name)
 
         from products_sync.models import Fuse5Products
         self.table_name = Fuse5Products._meta.db_table
 
     def get_found_df(self, barcodes: list) -> pd.DataFrame:
         from products_sync.models import Fuse5Products
+
         filtered_records = Fuse5Products.objects.filter(barcode__in=barcodes)
-        df = pd.DataFrame(filtered_records.values())
+        if filtered_records.exists():
+            df = pd.DataFrame.from_records(filtered_records.values())
+        else:
+            field_names = [field.name for field in Fuse5Products._meta.get_fields()]
+            df = pd.DataFrame(columns=field_names)
+
+        df = self.fill_default_location(df)
+
         return df
 
 
 class SqliteProductsFinder(BaseProductsFinder):
-    def __init__(self, df: pd.DataFrame, logger: logging.Logger = None):
-        super().__init__(logger)
+    def __init__(self, df: pd.DataFrame, logger: logging.Logger = None, default_location_name: str = None):
+        super().__init__(logger, default_location_name)
         self.table_name = 'supplier_products'
 
         self.logger.info('Indexing suppliers data for search...')
@@ -94,4 +112,7 @@ class SqliteProductsFinder(BaseProductsFinder):
         query = f"SELECT * FROM {self.table_name} WHERE barcode IN ({placeholders})"
 
         df = pd.read_sql_query(query, self.sqlite_conn, params=barcodes)
+
+        df = self.fill_default_location(df)
+
         return df

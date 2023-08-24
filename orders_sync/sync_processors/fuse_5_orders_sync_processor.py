@@ -81,7 +81,7 @@ class Fuse5OrdersSyncProcessor:
         #     logger=logger
         # )
 
-        self.products_finder = ProductsFinder(logger)
+        self.products_finder = ProductsFinder(logger, self.fuse5_default_location)
 
     def run_sync(self, since_id: int = None, status: OrderStatuses = OrderStatuses.OPEN):
         logger.info('Starting orders sync...')

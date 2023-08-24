@@ -247,13 +247,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         self._unmatched_variants = []
         self.gid = None
 
-        # if 'location_name' not in supplier_products_df.columns:
-        #     supplier_products_df['location_name'] = self.shopify_client.DEFAULT_LOCATION_NAME
-        # else:
-        #     supplier_products_df['location_name'].fillna(self.shopify_client.DEFAULT_LOCATION_NAME, inplace=True)
-
-        # TODO location
-        self.products_finder = ProductsFinder(logger)
+        self.products_finder = ProductsFinder(logger, self.shopify_client.DEFAULT_LOCATION_NAME)
 
     def process(self, dry: bool = True):
         """

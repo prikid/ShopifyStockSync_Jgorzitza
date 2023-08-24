@@ -40,9 +40,8 @@ class Fuse5Processor(BaseProductsSyncProcessor):
             logger=logger
         )
 
+    def update_from_remote(self):
+        self.fuse5data.update_from_remote()
 
     def get_suppliers_df(self) -> pd.DataFrame:
         return self.fuse5data.get_data(update_from_remote=settings.FUSE5_UPDATE_CSV_FROM_REMOTE)
-
-    # def run_sync(self, dry: bool = False, is_aborted_callback: callable = None) -> int | None:
-

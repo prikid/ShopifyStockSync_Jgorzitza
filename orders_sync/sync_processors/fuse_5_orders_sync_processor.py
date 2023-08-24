@@ -73,8 +73,9 @@ class Fuse5OrdersSyncProcessor:
         self.fuse5_default_location = next(iter(self.fuse5_locations), None)
 
         self.fuse5data = Fuse5DB(fuse5_client=self.fuse5, logger=logger)
+        # self.fuse5data.update_from_remote()
 
-        update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5data.exists()
+        # update_from_remote = settings.FUSE5_UPDATE_CSV_FROM_REMOTE and not self.fuse5data.exists()
         # self.products_finder = SqliteProductsFinder(
         #     df=self.fuse5csv.get_data(update_from_remote=update_from_remote),
         #     logger=logger

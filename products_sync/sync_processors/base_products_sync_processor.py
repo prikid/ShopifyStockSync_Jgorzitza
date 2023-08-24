@@ -64,12 +64,17 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
     def get_suppliers_df(self, *args, **kwargs) -> pd.DataFrame:
         raise NotImplemented
 
+    def update_from_remote(self):
+        raise NotImplemented
+
     def run_sync(self, dry: bool = False, is_aborted_callback: callable = None, **kwargs) -> int | None:
         def check_if_aborted():
             if is_aborted_callback and is_aborted_callback():
                 logger.warning('The process has been aborted')
                 return False
             return True
+
+        self.update_from_remote()
 
         if not check_if_aborted():
             return None

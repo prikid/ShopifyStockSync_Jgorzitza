@@ -141,16 +141,18 @@ class Fuse5DB(Fuse5RemoteBase):
 
         return df
 
+    def update_from_remote(self):
+        with tempfile.NamedTemporaryFile(mode='wb', delete=True) as tmp_file:
+            self.get_data_from_remote(
+                save_to=tmp_file,
+                changed_since=pd.to_datetime(settings.FUSE5_LOAD_DATA_CHANGED_SINCE)
+            )
+            self.save_csv_2_DB(Path(tmp_file.name))
+
     def get_data(self, update_from_remote: bool = False) -> pd.DataFrame:
         if update_from_remote:
             # TODO use changed_since to get only items changed since previous sync
-
-            with tempfile.NamedTemporaryFile(mode='wb', delete=True) as tmp_file:
-                self.get_data_from_remote(
-                    save_to=tmp_file,
-                    changed_since=pd.to_datetime(settings.FUSE5_LOAD_DATA_CHANGED_SINCE)
-                )
-                self.save_csv_2_DB(Path(tmp_file.name))
+            self.update_from_remote()
 
         self.logger.info("Loading suppliers data from DB")
         suppliers_df = self._read_data()

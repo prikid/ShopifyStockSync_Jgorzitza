@@ -1,3 +1,4 @@
+import html
 import json
 import re
 from abc import ABC, abstractmethod
@@ -213,6 +214,24 @@ class ShopifyVariantUpdater:
 
         return True
 
+    @classmethod
+    def update_variant_field(cls, variant_id: int, field_name: str, new_value):
+        shopify_client = ShopifyClient(
+            shop_name=settings.SHOPIFY_SHOP_NAME,
+            api_token=settings.SHOPIFY_API_TOKEN,
+            logger=logger
+        )
+
+        shopify_variant = shopify_client.get_variant(variant_id)
+
+        if not shopify_variant:
+            raise Exception(f"Can't find variant with the ID={variant_id}")
+
+        setattr(shopify_variant, field_name, new_value)
+
+        if not shopify_client.save(shopify_variant):
+            raise Exception("Can't save shopify variant")
+
 
 # TODO use configurable fields instead of hardcoded
 class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
@@ -295,38 +314,84 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                         self._process_matched_products(dry)
 
             if not is_matched:
-                self._unmatched_variants.append(variant)
-                logger.warning(
-                    "The matched product was not found in the supplier's data: "
-                    "product_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode} ".format(
-                        **variant.to_dict())
-                )
+                supplier_products_by_sku = self.find_supplier_product_by_sku(variant)
+                if supplier_products_by_sku:
+                    self._unmatched_variants.append(self.MatchedProductsTuple(variant, supplier_products_by_sku))
+
+                    logger.warning(
+                        "Products matched by SKU, but not matched by BARCODE are found in the supplier's data: "
+                        "product_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode}. Found matches:"
+                        " {matched}".format(
+                            **variant.to_dict() | {
+                                'matched': self._supplier_products_as_str(supplier_products_by_sku)})
+                    )
+                else:
+                    self._unmatched_variants.append(self.MatchedProductsTuple(variant, None))
+                    logger.warning(
+                        "The matched product was not found in the supplier's data: "
+                        "product_id={product_id}; variant_id={id}; sku={sku}; barcode={barcode} ".format(
+                            **variant.to_dict())
+                    )
 
         self._process_matched_products(dry)
         self._save_unmatched_products_to_db_log(dry)
 
         return self
 
-    def _save_unmatched_products_to_db_log(self, dry: bool):
+    @staticmethod
+    def _supplier_products_as_str(supplier_products: list | None) -> str:
+        if supplier_products:
+            return ', '.join(p['barcode'] or html.unescape(p['product_name']) for p in supplier_products)
 
+        return ''
+
+    def _save_unmatched_products_to_db_log(self, dry: bool):
         if dry:
             return
 
         from products_sync.models import ProductsUpdateLog
+        from products_sync.models import UnmatchedProductsForReview
 
-        ProductsUpdateLog.objects.bulk_create(
-            [
+        log_items = []
+        unmatched_for_review_items = []
+        for item in self._unmatched_variants:
+            shopify_variant, supplier_products = item
+
+            log_items.append(
                 ProductsUpdateLog(
                     gid=self.gid,
                     source=self.source_name,
-                    product_id=variant.product_id,
-                    variant_id=variant.id,
-                    sku=variant.sku,
-                    barcode=variant.barcode,
-                    changes=dict(unmatched=True)
+                    product_id=shopify_variant.product_id,
+                    variant_id=shopify_variant.id,
+                    sku=shopify_variant.sku,
+                    barcode=shopify_variant.barcode,
+                    changes=dict(
+                        unmatched=True,
+                        matched_by_sku=self._supplier_products_as_str(supplier_products),
+                    )
                 )
-                for variant in self._unmatched_variants
-            ],
+            )
+
+            if supplier_products:
+                unmatched_for_review_items.append(
+                    UnmatchedProductsForReview(
+                        shopify_product_id=shopify_variant.product_id,
+                        shopify_variant_id=shopify_variant.id,
+                        shopify_sku=shopify_variant.sku,
+                        shopify_barcode=shopify_variant.barcode,
+                        shopify_variant_title=shopify_variant.title,
+
+                        possible_fuse5_products=supplier_products
+                    )
+                )
+
+        ProductsUpdateLog.objects.bulk_create(log_items, batch_size=1000)
+
+        UnmatchedProductsForReview.objects.bulk_create(
+            unmatched_for_review_items,
+            update_conflicts=True,
+            unique_fields=['shopify_product_id', 'shopify_variant_id'],
+            update_fields=['shopify_sku', 'shopify_barcode', 'shopify_variant_title', 'possible_fuse5_products'],
             batch_size=1000
         )
 
@@ -386,3 +451,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         found_product = self.products_finder.find_product_by_barcode_and_sku(shopify_variant_data)
 
         return found_product
+
+    def find_supplier_product_by_sku(self, shopify_variant: Variant) -> list[dict] | None:
+        found_products = self.products_finder.find_products_by_sku(shopify_variant.to_dict())
+        return found_products

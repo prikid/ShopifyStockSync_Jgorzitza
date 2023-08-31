@@ -68,4 +68,22 @@ class Fuse5Products(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["barcode"]),
+            models.Index(fields=["sku"]),
+        ]
+
+
+class UnmatchedProductsForReview(models.Model):
+    shopify_product_id = models.PositiveBigIntegerField()
+    shopify_variant_id = models.PositiveBigIntegerField()
+    shopify_sku = models.CharField(max_length=30, null=True)
+    shopify_barcode = models.CharField(max_length=20, null=True)
+    shopify_variant_title = models.CharField()
+
+    possible_fuse5_products = models.JSONField()
+
+    class Meta:
+        unique_together = (('shopify_product_id', 'shopify_variant_id'),)
+        indexes = [
+            models.Index(fields=["shopify_sku"]),
+            models.Index(fields=["shopify_barcode"]),
         ]

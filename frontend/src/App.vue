@@ -17,6 +17,11 @@
 
       <template #end>
         <template v-if="$store.getters.isAuthenticated">
+
+          <b-navbar-item>
+            <router-link to="/unmatched_review">Review unmatched</router-link>
+          </b-navbar-item>
+
           <b-navbar-item>
             <router-link to="/logs">Logs</router-link>
           </b-navbar-item>

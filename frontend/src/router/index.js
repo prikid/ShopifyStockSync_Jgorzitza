@@ -6,6 +6,7 @@ import LoginView from "../views/LoginView.vue";
 import NotFound from "@/views/NotFound.vue";
 import LogsListView from "@/views/LogsListView.vue";
 import UploadCustomCSV from "@/views/UploadCustomCsv.vue";
+import UnmatchedReview from "@/views/UnmatchedReview.vue";
 
 Vue.use(VueRouter)
 
@@ -39,6 +40,14 @@ const routes = [
             requireLogin: true
         },
         component: LogsListView
+    },
+    {
+        path: '/unmatched_review',
+        name: 'unmatched_review',
+        meta: {
+            requireLogin: true
+        },
+        component: UnmatchedReview
     },
     {
         path: '/upload-custom-csv',

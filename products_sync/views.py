@@ -10,6 +10,7 @@ from pyactiveresource import connection
 from rest_framework import mixins, viewsets, status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -18,8 +19,9 @@ from django_cte import With
 
 from app.settings import REDIS_URL
 from . import logger
-from .models import StockDataSource, ProductsUpdateLog, CustomCsvData
-from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer
+from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview
+from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer, UnmatchedProductsForReviewSerializer
+from .sync_processors.shopify_products_updater import ShopifyVariantUpdater
 from .tasks import sync_products
 
 # Connect to the Redis server
@@ -240,3 +242,35 @@ class UploadCustomCSVView(APIView):
 
         CustomCsvData.delete_old()
         return Response({'custom_csv_data_id': rec.pk}, status=status.HTTP_201_CREATED)
+
+
+class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = UnmatchedProductsForReviewSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    pagination_class = PageNumberPagination
+    page_size_query_param = 'per_page'
+    max_page_size = 100
+
+    queryset = UnmatchedProductsForReview.objects.order_by('id').all()
+
+    def update(self, request, *args, **kwargs):
+
+        try:
+            instance = self.get_object()
+            new_barcode = request.data['new_barcode']
+
+            ShopifyVariantUpdater.update_variant_field(
+                variant_id=instance.shopify_variant_id,
+                field_name='barcode',
+                new_value=new_barcode
+            )
+
+        except Exception as e:
+            logger.error(e)
+            Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            instance.delete()
+
+        return Response(status=status.HTTP_200_OK)

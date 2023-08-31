@@ -9,7 +9,9 @@ import axios from 'axios'
 axios.defaults.baseURL = process.env.VUE_APP_BACKEND_HOST
 
 Vue.config.productionTip = false;
-Vue.use(Buefy);
+Vue.use(Buefy, {
+    defaultIconPack: 'fas',
+});
 
 // Vue.component('vue-csv-import', VueCsvImport);
 

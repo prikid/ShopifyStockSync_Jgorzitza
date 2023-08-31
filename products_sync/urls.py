@@ -7,6 +7,7 @@ from products_sync.views import UploadCustomCSVView
 router = DefaultRouter()
 router.register('sources', views.StockDataSourceViewSet)
 router.register('products_sync_logs', views.ProductsUpdateLogViewSet, basename='products_sync_logs')
+router.register('unmatched_review', views.UnmatchedProductsForReviewViewSet)
 
 app_name = 'products_sync'
 

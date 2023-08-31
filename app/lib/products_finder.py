@@ -1,3 +1,4 @@
+import html
 import logging
 import sqlite3
 from abc import abstractmethod
@@ -22,8 +23,21 @@ class BaseProductsFinder:
         return df
 
     @abstractmethod
-    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+    def find_by_barcodes(self, barcodes: list) -> pd.DataFrame:
         ...
+
+    @abstractmethod
+    def find_by_sku(self, sku: str) -> pd.DataFrame:
+        ...
+
+    def find_products_by_sku(self, shopify_variant_data: dict) -> list[dict] | None:
+        sku = shopify_variant_data['sku']
+        supplier_products = self.find_by_sku(sku)
+
+        if supplier_products.empty:
+            return None
+
+        return supplier_products.to_dict(orient='records')
 
     def find_product_by_barcode_and_sku(self, shopify_variant_data: dict) -> dict | None:
         def log_no_sku_warning(_supplier_products: list[dict]):
@@ -42,7 +56,7 @@ class BaseProductsFinder:
             for product in _supplier_products:
                 msg += "\n\t\tbarcode={barcode}; sku={sku}".format(**product)
                 if 'product_name' in product:
-                    msg += "; name=%s" % product['product_name']
+                    msg += "; name=%s" % html.unescape(product['product_name'])
 
             self.logger.warning(msg)
 
@@ -53,7 +67,7 @@ class BaseProductsFinder:
 
         # create variants of the barcode of different length by filling leading zeros
         barcodes = [barcode.zfill(i) for i in range(len(barcode), 15)]
-        supplier_products = self.get_found_df(barcodes)
+        supplier_products = self.find_by_barcodes(barcodes)
 
         if supplier_products.empty:
             return None
@@ -78,10 +92,21 @@ class ProductsFinder(BaseProductsFinder):
         from products_sync.models import Fuse5Products
         self.table_name = Fuse5Products._meta.db_table
 
-    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+    def find_by_barcodes(self, barcodes: list) -> pd.DataFrame:
         from products_sync.models import Fuse5Products
 
         filtered_records = Fuse5Products.objects.filter(barcode__in=barcodes)
+        return self._get_found_df(filtered_records)
+
+    def find_by_sku(self, sku: str) -> pd.DataFrame:
+        from products_sync.models import Fuse5Products
+
+        filtered_records = Fuse5Products.objects.filter(sku__iexact=sku)
+        return self._get_found_df(filtered_records)
+
+    def _get_found_df(self, filtered_records) -> pd.DataFrame:
+        from products_sync.models import Fuse5Products
+
         if filtered_records.exists():
             df = pd.DataFrame.from_records(filtered_records.values())
         else:
@@ -107,7 +132,7 @@ class SqliteProductsFinder(BaseProductsFinder):
     def __del__(self):
         self.sqlite_conn.close()
 
-    def get_found_df(self, barcodes: list) -> pd.DataFrame:
+    def find_by_barcodes(self, barcodes: list) -> pd.DataFrame:
         placeholders = ','.join(['?'] * len(barcodes))
         query = f"SELECT * FROM {self.table_name} WHERE barcode IN ({placeholders})"
 
@@ -116,3 +141,7 @@ class SqliteProductsFinder(BaseProductsFinder):
         df = self.fill_default_location(df)
 
         return df
+
+    @abstractmethod
+    def find_by_sku(self, sku: str) -> pd.DataFrame:
+        raise NotImplementedError

@@ -1,6 +1,9 @@
+import html
+
 from rest_framework import serializers
 
-from .models import StockDataSource, ProductsUpdateLog
+from app import settings
+from .models import StockDataSource, ProductsUpdateLog, UnmatchedProductsForReview
 
 
 class StockDataSourceSerializer(serializers.ModelSerializer):
@@ -16,3 +19,29 @@ class ProductsUpdateLogSerializer(serializers.ModelSerializer):
         fields = ['gid', 'source', 'time', 'sku', 'product_id', 'variant_id', 'barcode', 'changes']
         read_only_fields = fields
 
+
+class UnmatchedProductsForReviewSerializer(serializers.ModelSerializer):
+    possible_fuse5_products = serializers.SerializerMethodField()
+    product_url = serializers.SerializerMethodField()
+    variant_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UnmatchedProductsForReview
+        fields = ['id', 'shopify_product_id', 'shopify_variant_id', 'shopify_sku', 'shopify_barcode',
+                  'shopify_variant_title',
+                  'possible_fuse5_products', 'product_url', 'variant_url']
+        read_only_fields = fields
+
+    def get_possible_fuse5_products(self, obj):
+        products = []
+        for p in obj.possible_fuse5_products:
+            p['product_name'] = html.unescape(p['product_name'])
+            products.append(p)
+
+        return products
+
+    def get_product_url(self, obj):
+        return f"https://admin.shopify.com/store/{settings.SHOPIFY_SHOP_NAME}/products/{obj.shopify_product_id}"
+
+    def get_variant_url(self, obj):
+        return self.get_product_url(obj) + f"/variants/{obj.shopify_variant_id}"

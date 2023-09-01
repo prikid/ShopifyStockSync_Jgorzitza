@@ -173,12 +173,12 @@ class Fuse5OrdersSyncProcessor:
             params['tracking_number'] = tracking_number
 
         params["price_override"] = {
-            "subtotal": shopify_order.subtotal_price,
-            "tax": shopify_order.total_tax,
+            "subtotal": float(shopify_order.subtotal_price),
+            "tax": float(shopify_order.total_tax),
             "discount": float(shopify_order.total_discounts),
             "handling": 0.00,
-            "shipping": shopify_order.total_shipping_price_set.shop_money.amount,
-            "total": shopify_order.total_price
+            "shipping": float(shopify_order.total_shipping_price_set.shop_money.amount),
+            "total": float(shopify_order.total_price)
         }
 
         try:

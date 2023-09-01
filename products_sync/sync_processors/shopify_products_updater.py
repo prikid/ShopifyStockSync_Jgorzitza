@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import Any
 
 import pandas as pd
+from django.db import connection, transaction
 from pyactiveresource.connection import ClientError
 
 from app import settings
@@ -334,7 +335,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                     )
 
         self._process_matched_products(dry)
-        self._save_unmatched_products_to_db_log(dry)
+        self._process_unmatched_products(dry)
 
         return self
 
@@ -345,7 +346,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         return ''
 
-    def _save_unmatched_products_to_db_log(self, dry: bool):
+    def _process_unmatched_products(self, dry: bool):
         if dry:
             return
 
@@ -354,8 +355,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         log_items = []
         unmatched_for_review_items = []
-        for item in self._unmatched_variants:
-            shopify_variant, supplier_products = item
+        for shopify_variant, supplier_products in self._unmatched_variants:
 
             log_items.append(
                 ProductsUpdateLog(
@@ -387,13 +387,19 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         ProductsUpdateLog.objects.bulk_create(log_items, batch_size=1000)
 
-        UnmatchedProductsForReview.objects.bulk_create(
-            unmatched_for_review_items,
-            update_conflicts=True,
-            unique_fields=['shopify_product_id', 'shopify_variant_id'],
-            update_fields=['shopify_sku', 'shopify_barcode', 'shopify_variant_title', 'possible_fuse5_products'],
-            batch_size=1000
-        )
+        with transaction.atomic():
+            # deleting all old records
+            with connection.cursor() as cursor:
+                cursor.execute(f"TRUNCATE TABLE {UnmatchedProductsForReview._meta.db_table}")
+
+            # storing latest records
+            UnmatchedProductsForReview.objects.bulk_create(
+                unmatched_for_review_items,
+                update_conflicts=True,
+                unique_fields=['shopify_product_id', 'shopify_variant_id'],
+                update_fields=['shopify_sku', 'shopify_barcode', 'shopify_variant_title', 'possible_fuse5_products'],
+                batch_size=1000
+            )
 
     def _process_matched_products(self, dry: bool):
         """

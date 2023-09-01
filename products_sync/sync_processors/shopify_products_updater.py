@@ -341,7 +341,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
     @staticmethod
     def _supplier_products_as_str(supplier_products: list | None) -> str:
         if supplier_products:
-            return ', '.join(p['barcode'] or html.unescape(p['product_name']) for p in supplier_products)
+            return ', '.join(p['barcode'] or html.unescape(p['product_name'] or '') for p in supplier_products)
 
         return ''
 

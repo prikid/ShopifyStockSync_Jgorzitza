@@ -56,7 +56,7 @@ class BaseProductsFinder:
             for product in _supplier_products:
                 msg += "\n\t\tbarcode={barcode}; sku={sku}".format(**product)
                 if 'product_name' in product:
-                    msg += "; name=%s" % html.unescape(product['product_name'])
+                    msg += "; name=%s" % html.unescape(product['product_name'] or '')
 
             self.logger.warning(msg)
 

@@ -35,7 +35,7 @@ class UnmatchedProductsForReviewSerializer(serializers.ModelSerializer):
     def get_possible_fuse5_products(self, obj):
         products = []
         for p in obj.possible_fuse5_products:
-            p['product_name'] = html.unescape(p['product_name'])
+            p['product_name'] = html.unescape(p['product_name'] or '')
             products.append(p)
 
         return products

@@ -387,6 +387,17 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
         ProductsUpdateLog.objects.bulk_create(log_items, batch_size=1000)
 
+        # extract product ids from unmatched variants
+        required_product_ids = ','.join(map(str, set(item.shopify_product_id for item in unmatched_for_review_items)))
+
+        # getting product titles for the ids from shopify
+        unmatched_products_map = {p.id: p.title
+                                  for p in self.shopify_client.products(ids=required_product_ids, fields='id,title')}
+
+        # set product titles to variants
+        for item in unmatched_for_review_items:
+            item.shopify_product_title = unmatched_products_map.get(item.shopify_product_id)
+
         with transaction.atomic():
             # deleting all old records
             with connection.cursor() as cursor:
@@ -397,7 +408,8 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                 unmatched_for_review_items,
                 update_conflicts=True,
                 unique_fields=['shopify_product_id', 'shopify_variant_id'],
-                update_fields=['shopify_sku', 'shopify_barcode', 'shopify_variant_title', 'possible_fuse5_products'],
+                update_fields=['shopify_sku', 'shopify_product_title', 'shopify_barcode', 'shopify_variant_title',
+                               'possible_fuse5_products'],
                 batch_size=1000
             )
 

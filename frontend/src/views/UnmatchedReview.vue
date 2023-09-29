@@ -29,6 +29,10 @@
         <a :href="props.row.product_url" target="_blank" v-text="props.row.shopify_product_id"/>
       </b-table-column>
 
+      <b-table-column field="shopify_product_title" label="Product title" v-slot="props">
+        <a :href="props.row.product_url" target="_blank" v-text="props.row.shopify_product_title"/>
+      </b-table-column>
+
       <b-table-column field="shopify_sku" label="SKU" sortable v-slot="props">
         {{ props.row.shopify_sku }}
       </b-table-column>

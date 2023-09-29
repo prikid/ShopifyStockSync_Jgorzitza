@@ -87,8 +87,8 @@ class ShopifyClient:
 
         return dict(location=location, inventory_level=inventory_level)
 
-    def products(self):
-        return self._iter_objects(self.client.Product)
+    def products(self, **params):
+        return self._iter_objects(self.client.Product, **params)
 
     def variants(self):
         for variant in self._iter_objects(self.client.Variant):

@@ -27,7 +27,7 @@ class UnmatchedProductsForReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UnmatchedProductsForReview
-        fields = ['id', 'shopify_product_id', 'shopify_variant_id', 'shopify_sku', 'shopify_barcode',
+        fields = ['id', 'shopify_product_id', 'shopify_product_title', 'shopify_variant_id', 'shopify_sku', 'shopify_barcode',
                   'shopify_variant_title',
                   'possible_fuse5_products', 'product_url', 'variant_url']
         read_only_fields = fields

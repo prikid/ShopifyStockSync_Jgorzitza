@@ -60,7 +60,7 @@ class TestShopifyProductsUpdater(APITestCase):
             updater_class=ShopifyProductsUpdater_Patched
         )
 
-        processor.run_sync(dry=True)
+        processor.run_sync(dry=False)
 
     # def test_task_singleton(self):
     #     from tasks import sync_products

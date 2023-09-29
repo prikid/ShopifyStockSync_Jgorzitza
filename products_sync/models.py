@@ -74,6 +74,7 @@ class Fuse5Products(models.Model):
 
 class UnmatchedProductsForReview(models.Model):
     shopify_product_id = models.PositiveBigIntegerField()
+    shopify_product_title = models.CharField(null=True)
     shopify_variant_id = models.PositiveBigIntegerField()
     shopify_sku = models.CharField(max_length=30, null=True)
     shopify_barcode = models.CharField(max_length=20, null=True)

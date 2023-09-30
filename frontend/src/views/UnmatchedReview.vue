@@ -2,7 +2,7 @@
   <section>
         <div class="is-flex is-justify-content-end">
           <b-field label="Per page">
-            <b-select v-model="perPage">
+            <b-select v-model="perPage"  @input="onPageChange(1)">
               <option v-for="v in [50,100,200,500,1000]" :value="v" :key="v" v-text="v"/>
             </b-select>
           </b-field>

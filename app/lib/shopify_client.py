@@ -102,8 +102,9 @@ class ShopifyClient:
         return self._iter_objects(self.client.Order, **params)
 
     def _iter_objects(self, resource: Type[ShopifyResource], **params) -> Iterator:
-        total_objects_count = self.call_with_rate_limit(resource.count, **params)
-        self.logger.info("The total %ss count is %s" % (resource.__name__.lower(), total_objects_count))
+        if 'ids' not in params:
+            total_objects_count = self.call_with_rate_limit(resource.count, **params)
+            self.logger.info("The total %ss count is %s" % (resource.__name__.lower(), total_objects_count))
 
         objects = self.call_with_rate_limit(resource.find, limit=self.page_size, **params)
         pages = PaginatedIterator(objects)

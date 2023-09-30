@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 from django.db import connection, transaction
 from pyactiveresource.connection import ClientError
+import more_itertools as mit
 
 from app import settings
 from app.lib.products_finder import ProductsFinder
@@ -236,6 +237,8 @@ class ShopifyVariantUpdater:
 
 # TODO use configurable fields instead of hardcoded
 class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
+    PER_PAGE = 250
+
     RGX_SC_NUM = re.compile(r"\d+\.\d+E\+\d+")
     RGX_BARCODE = re.compile(r"\d{6,}")
 
@@ -311,7 +314,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                         supplier_product['price'] = round(float(supplier_product['price']), 2)
                     self._matched_products.append(self.MatchedProductsTuple(variant, supplier_product))
 
-                    if len(self._matched_products) >= 250:
+                    if len(self._matched_products) >= self.PER_PAGE:
                         self._process_matched_products(dry)
 
             if not is_matched:
@@ -388,11 +391,17 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         ProductsUpdateLog.objects.bulk_create(log_items, batch_size=1000)
 
         # extract product ids from unmatched variants
-        required_product_ids = ','.join(map(str, set(item.shopify_product_id for item in unmatched_for_review_items)))
+        required_product_ids = map(str, set(item.shopify_product_id for item in unmatched_for_review_items))
 
-        # getting product titles for the ids from shopify
-        unmatched_products_map = {p.id: p.title
-                                  for p in self.shopify_client.products(ids=required_product_ids, fields='id,title')}
+        unmatched_products_map = dict()
+        for batch_ids in mit.batched(required_product_ids, self.PER_PAGE):
+            # getting product titles for the ids from shopify
+            unmatched_products_map.update(
+                {
+                    p.id: p.title
+                    for p in self.shopify_client.products(ids=','.join(batch_ids), fields='id,title')
+                }
+            )
 
         # set product titles to variants
         for item in unmatched_for_review_items:

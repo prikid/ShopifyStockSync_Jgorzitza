@@ -1,5 +1,12 @@
 <template>
   <section>
+        <div class="is-flex is-justify-content-end">
+          <b-field label="Per page">
+            <b-select v-model="perPage">
+              <option v-for="v in [50,100,200,500,1000]" :value="v" :key="v" v-text="v"/>
+            </b-select>
+          </b-field>
+        </div>
     <b-table
         :data="products_list"
         ref="table"
@@ -10,11 +17,13 @@
         :per-page="perPage"
         @page-change="onPageChange"
 
+        checkable
+        sticky-checkbox
+        striped
 
         detailed
-        detail-key="shopify_variant_id"
+        detail-key="id"
         :show-detail-icon="true"
-        :opened-detailed="defaultOpenedDetails"
         aria-next-label="Next page"
         aria-previous-label="Previous page"
         aria-page-label="Page"
@@ -107,19 +116,19 @@ export default {
     return {
       products_list: [],
       loading: false,
-      defaultOpenedDetails: [],
+      // defaultOpenedDetails: [],
       new_barcodes: {},
 
       total: 0,
       page: 1,
-      perPage: 30
+      perPage: 50
     }
   },
 
   async mounted() {
     this.loading = true;
     await this.loadData();
-    this.defaultOpenedDetails = this.products_list.length ? [this.products_list[0]['shopify_variant_id']] : [];
+    // this.defaultOpenedDetails = this.products_list.length ? [this.products_list[0]['shopify_variant_id']] : [];
     this.loading = false;
   },
 

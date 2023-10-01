@@ -37,6 +37,12 @@ def convert_str_to_boolean(v: str):
     return v
 
 
+class ListPageNumberPagination(PageNumberPagination):
+    page_query_param = 'page'
+    page_size_query_param = 'per_page'
+    max_page_size = 1000
+
+
 class StockDataSourceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     serializer_class = StockDataSourceSerializer
     authentication_classes = [TokenAuthentication]
@@ -249,9 +255,7 @@ class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericV
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
-    pagination_class = PageNumberPagination
-    page_size_query_param = 'per_page'
-    max_page_size = 100
+    pagination_class = ListPageNumberPagination
 
     queryset = UnmatchedProductsForReview.objects.order_by('id').all()
 

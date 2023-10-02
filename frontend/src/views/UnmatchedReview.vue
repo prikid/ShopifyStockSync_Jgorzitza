@@ -1,12 +1,28 @@
 <template>
   <section>
-        <div class="is-flex is-justify-content-end">
+    <div class="level">
+      <div class="level-left">
+        <div class="level-item">
+          <b-button @click="collapseAll" icon-left="compress" label="Collapse all"/>
+          <b-button @click="expandAll" icon-left="expand" label="Expand all"/>
+          <b-button @click="selectAll" icon-left="check-circle" title="Select all the first ones" label="Select all"/>
+          <b-button @click="clearAll" icon-left="times" label="Clear all"/>
+          <b-button type="is-danger" @click="saveAll" icon-left="save" label="Save all"
+                    :disabled="!Object.keys(new_barcodes).length"/>
+        </div>
+      </div>
+      <div class="level-right">
+        <div class="level-item">
           <b-field label="Per page">
-            <b-select v-model="perPage"  @input="onPageChange(1)">
+            <b-select v-model="perPage" @input="onPageChange(1)">
               <option v-for="v in [50,100,200,500,1000]" :value="v" :key="v" v-text="v"/>
             </b-select>
           </b-field>
         </div>
+      </div>
+    </div>
+
+
     <b-table
         :data="products_list"
         ref="table"
@@ -17,12 +33,11 @@
         :per-page="perPage"
         @page-change="onPageChange"
 
-        checkable
-        sticky-checkbox
         striped
 
         detailed
         detail-key="id"
+        :opened-detailed=openedDetailedRows
         :show-detail-icon="true"
         aria-next-label="Next page"
         aria-previous-label="Previous page"
@@ -93,8 +108,9 @@
             <p class="control">
               <b-button type="is-danger is-outlined"
                         label="Save to Shopify"
+                        icon-left="save"
                         :disabled="!new_barcodes[props.row.shopify_variant_id]"
-                        @click="replaceBarcodeOnShopify(props.row)"
+                        @click="onSaveToShopifyClick(props.row)"
               />
             </p>
           </b-field>
@@ -116,7 +132,7 @@ export default {
     return {
       products_list: [],
       loading: false,
-      // defaultOpenedDetails: [],
+      openedDetailedRows: [],
       new_barcodes: {},
 
       total: 0,
@@ -133,6 +149,26 @@ export default {
   },
 
   methods: {
+    collapseAll() {
+      this.openedDetailedRows = [];
+    },
+
+    expandAll() {
+      this.openedDetailedRows = this.products_list.map((p) => p.id);
+    },
+
+    selectAll() {
+      this.new_barcodes = this.products_list.reduce((result, product) => {
+        if (product.possible_fuse5_products.length && product.possible_fuse5_products[0].barcode)
+          result[product.shopify_variant_id] = product.possible_fuse5_products[0].barcode;
+        return result;
+      }, {});
+    },
+
+    clearAll() {
+      this.new_barcodes = {};
+    },
+
     onPageChange(page) {
       this.page = page;
       this.loadData();
@@ -149,28 +185,47 @@ export default {
       this.products_list = response.data.results;
     },
 
-    async replaceBarcodeOnShopify(row) {
+    async saveAll() {
+      const promises = this.products_list.map(async (p) => {
+        if (p.shopify_variant_id in this.new_barcodes) {
+          await this.replaceBarcodeOnShopify(p);
+        }
+      });
+
+      // Wait for all replaceBarcodeOnShopify calls to finish
+      await Promise.all(promises);
+
+      // Once all promises are resolved, loadData is called
+      await this.loadData();
+    },
+
+    async onSaveToShopifyClick(row) {
+      await this.replaceBarcodeOnShopify(row);
+      await this.loadData();
+    },
+
+    async replaceBarcodeOnShopify(product) {
       try {
-        const new_barcode = this.new_barcodes[row.shopify_variant_id];
-        const response = await axios.put(`/api/unmatched_review/${row.id}/`, {
+        const new_barcode = this.new_barcodes[product.shopify_variant_id];
+        const response = await axios.put(`/api/unmatched_review/${product.id}/`, {
           new_barcode: new_barcode
         });
 
         if (response.status === 200) {
           Toast.open({
-            message: `The new barcode ${new_barcode} has been set to the product variant ${row.shopify_variant_id}  `,
+            message: `The new barcode ${new_barcode} has been set to the product variant ${product.shopify_variant_id}  `,
             type: 'is-success',
-            duration: 5000
+            duration: 5000,
+            queue: false
           });
 
-          await this.loadData();
-        }
-        else {
+        } else {
           throw new Error(response.statusText);
         }
       } catch (e) {
         console.log(e);
-        Toast.open({message: "Something went wrong!", type: 'is-danger'});
+        const error_msg = e.response?.data?.error ?? "Something went wrong";
+        Toast.open({message: error_msg, type: 'is-danger', queue: false, duration: 5000});
       }
     }
   },

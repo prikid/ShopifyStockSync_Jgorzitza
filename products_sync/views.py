@@ -273,7 +273,7 @@ class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericV
 
         except Exception as e:
             logger.error(e)
-            Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             instance.delete()
 

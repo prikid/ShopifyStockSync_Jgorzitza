@@ -159,8 +159,14 @@ export default {
 
     selectAll() {
       this.new_barcodes = this.products_list.reduce((result, product) => {
-        if (product.possible_fuse5_products.length && product.possible_fuse5_products[0].barcode)
-          result[product.shopify_variant_id] = product.possible_fuse5_products[0].barcode;
+        const barcodeItem = product.possible_fuse5_products.find(
+            (item) => item.barcode !== null && item.barcode !== ""
+        );
+
+        if (barcodeItem) {
+          result[product.shopify_variant_id] = barcodeItem.barcode;
+        }
+
         return result;
       }, {});
     },

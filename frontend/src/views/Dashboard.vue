@@ -43,8 +43,9 @@
       <b-table-column v-slot="props">
         <template v-if="props.row.processor==='CustomCSVProcessor'">
           <upload-custom-csv
-              @input="(csv_id, dry, updatePrice, updateInventory) =>
-              customCsvSync(props.row, dry, csv_id, updatePrice, updateInventory)"
+              :shopifyLocations="shopifyLocations"
+              @input="(csv_id, dry, updatePrice, updateInventory, shopifyInventoryLocation) =>
+              customCsvSync(props.row, dry, csv_id, updatePrice, updateInventory, shopifyInventoryLocation)"
           ></upload-custom-csv>
         </template>
 
@@ -81,11 +82,15 @@ export default {
       logRowsCounter: 0,
       isButtonDisabled: false,
       log_group_id: undefined,
+
+      shopifyLocations: ['Use CSV field']
+
     }
   },
 
   mounted() {
     this.getDataSources()
+    this.getShopifyLocations()
   },
 
   computed: {
@@ -96,11 +101,12 @@ export default {
 
   methods: {
 
-    customCsvSync(row, dry, custom_csv_data_id, updatePrice, updateInventory) {
+    customCsvSync(row, dry, custom_csv_id, updatePrice, updateInventory, shopifyInventoryLocation) {
       this.syncNow(row, dry, {
-        custom_csv_data_id: custom_csv_data_id,
+        custom_csv_id: custom_csv_id,
         update_price: updatePrice,
         update_inventory: updateInventory,
+        shopify_inventory_location: shopifyInventoryLocation
       })
     },
 
@@ -214,6 +220,16 @@ export default {
           .catch((error) => {
             this.sources = []
             this.loading = false
+            throw error
+          })
+    },
+
+    async getShopifyLocations() {
+      axios.get('/api/shopify_locations/')
+          .then(({data}) => {
+            this.shopifyLocations = this.shopifyLocations.concat(data);
+          })
+          .catch((error) => {
             throw error
           })
     }

@@ -77,6 +77,11 @@
           <div class="block">
             <b-checkbox v-model="updatePrice">Update price</b-checkbox>
             <b-checkbox v-model="updateInventory">Update inventory</b-checkbox>
+            <b-select v-model="shopifyInventoryLocationIdx">
+              <option v-for="(locationName, key) in shopifyLocations" :value="key" :key="key">
+                {{ locationName }}
+              </option>
+            </b-select>
           </div>
           <div class="form-group mt-2" v-if="url">
             <slot name="submit" :submit="submit">
@@ -116,6 +121,8 @@ export default {
         'location_name': 'location_name'
       })
     },
+
+    shopifyLocations: Array,
 
     mandatoryFields: {
       type: Array,
@@ -222,6 +229,7 @@ export default {
 
     updatePrice: true,
     updateInventory: true,
+    shopifyInventoryLocationIdx: 0,
 
     fieldIsMandatoryText: ''
   }),
@@ -263,9 +271,9 @@ export default {
 
       if (this.url) {
         axios
-            .post(this.url, this.form)
+            .post(this.url, this.form, {timeout: 60000})
             .then((response) => {
-              _this.callback(response, dry, this.updatePrice, this.updateInventory);
+              _this.callback(response, dry, this.updatePrice, this.updateInventory, this.shopifyLocations[this.shopifyInventoryLocationIdx]);
             })
             .catch((response) => {
               _this.catch(response, dry);

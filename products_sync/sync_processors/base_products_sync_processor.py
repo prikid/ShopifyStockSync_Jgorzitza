@@ -1,19 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
+from django.db.models import QuerySet
 from django.utils.functional import cached_property
 import pandas as pd
 
 from app import settings
 from app.lib.shopify_client import ShopifyClient
-from .shopify_products_updater import AbstractShopifyProductsUpdater
+from .shopify_products_updater import ShopifyProductsUpdater, AbstractShopifyProductsUpdater
 from .. import logger
 
 
 class AbstractProductsSyncProcessor(ABC):
-    def __init__(self, params: dict, updater_class: Type["AbstractShopifyProductsUpdater"]):
+    def __init__(self, params: dict):
         self.params = params
-        self.updater_class = updater_class
 
     @abstractmethod
     def run_sync(self, dry: bool = False, is_aborted_callback: callable = None, **kwargs) -> int | None:
@@ -31,17 +31,14 @@ class AbstractProductsSyncProcessor(ABC):
        """
         pass
 
-    # @abstractmethod
-    # def save_to_db(self):
-    #     pass
-
-    # @abstractmethod
-    # def update_store(self):
-    #     pass
-
 
 class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
     PROCESSOR_NAME = ''
+    supplier_products_queryset: QuerySet
+
+    def __init__(self, params: dict):
+        super().__init__(params)
+        self.updater_class: Type["AbstractShopifyProductsUpdater"] = ShopifyProductsUpdater
 
     @cached_property
     def source_name(self):
@@ -83,10 +80,15 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
 
         shopify_client = self.get_shopify_client(check_if_aborted)
 
-        updater = self.updater_class(shopify_client, self.source_name,
-                                     update_price=kwargs.get('update_price', True),
-                                     update_inventory=kwargs.get('update_inventory', True),
-                                     )
+        updater = self.updater_class(
+            shopify_client=shopify_client,
+            source_name=self.source_name,
+            supplier_products=self.supplier_products_queryset,
+            update_price=self.params.get('update_price', True),
+            update_inventory=self.params.get('update_inventory', True),
+            inventory_location=self.params.get('shopify_inventory_location', None),
+            check_if_aborted=check_if_aborted
+        )
 
         gid = updater.process(dry=dry).gid
 

@@ -46,8 +46,22 @@ class ProductsUpdateLog(models.Model):
         cls.objects.filter(time__lte=delete_time_point).delete()
 
 
-class CustomCsvData(models.Model):
-    data = models.JSONField()
+class AbstractSupplierProducts(models.Model):
+    class Meta:
+        abstract = True
+        indexes = [
+            models.Index(fields=["barcode"]),
+            models.Index(fields=["sku"]),
+        ]
+
+    barcode = models.CharField(max_length=20, null=True)
+    price = models.FloatField(null=True)
+    inventory_quantity = models.IntegerField(null=True)
+    sku = models.CharField(max_length=30, null=True)
+    location_name = models.CharField(max_length=30, null=True)
+
+
+class CustomCsv(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     @classmethod
@@ -56,20 +70,13 @@ class CustomCsvData(models.Model):
         cls.objects.filter(created_at__lte=delete_time_point).delete()
 
 
-class Fuse5Products(models.Model):
-    barcode = models.CharField(max_length=20, null=True)
-    price = models.FloatField(null=True)
-    inventory_quantity = models.IntegerField(null=True)
-    sku = models.CharField(max_length=30, null=True)
-    line_code = models.CharField(max_length=3, null=True)
-    product_name = models.CharField(null=True)
-    location_name = models.CharField(max_length=30, null=True)
+class CustomCsvData(AbstractSupplierProducts):
+    custom_csv = models.ForeignKey(CustomCsv, on_delete=models.CASCADE)
 
-    class Meta:
-        indexes = [
-            models.Index(fields=["barcode"]),
-            models.Index(fields=["sku"]),
-        ]
+
+class Fuse5Products(AbstractSupplierProducts):
+    product_name = models.CharField(null=True)
+    line_code = models.CharField(max_length=3, null=True)
 
 
 class UnmatchedProductsForReview(models.Model):

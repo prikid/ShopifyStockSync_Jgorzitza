@@ -9,6 +9,7 @@ from app.lib.products_finder import ProductsFinder
 from app.lib.shopify_client import ShopifyClient
 from orders_sync import logger
 from orders_sync.models import OrdersSyncLog
+from products_sync.models import Fuse5Products
 from shopify import Order
 
 
@@ -81,7 +82,7 @@ class Fuse5OrdersSyncProcessor:
         #     logger=logger
         # )
 
-        self.products_finder = ProductsFinder(logger, self.fuse5_default_location)
+        self.products_finder = ProductsFinder(Fuse5Products, logger, self.fuse5_default_location)
 
     def run_sync(self, since_id: int = None, status: OrderStatuses = OrderStatuses.OPEN):
         logger.info('Starting orders sync...')

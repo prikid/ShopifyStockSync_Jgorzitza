@@ -29,6 +29,7 @@ class CeleryLogHandler(logging.Handler):
         # Set expiration time for the Redis key (optional)
         redis_client.expire(redis_key, 3600)  # Set expiration time to 1 hour
 
+
 class SingletonAbortableTask(AbortableTask, Singleton):
     pass
 
@@ -49,6 +50,7 @@ def sync_products(self_task, source_id: int, dry: bool, params=None):
         params = {}
 
     source = StockDataSource.objects.get(pk=source_id)
+    source.params.update(params)
 
     handler = CeleryLogHandler(logging.DEBUG, self_task)
     formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s:%(message)s', datefmt='%d-%m-%Y %I:%M:%S')
@@ -57,7 +59,7 @@ def sync_products(self_task, source_id: int, dry: bool, params=None):
 
     try:
         processor = get_processor_by_source(source)
-        gid = processor.run_sync(dry=dry, is_aborted_callback=self_task.is_aborted, **params)
+        gid = processor.run_sync(dry=dry, is_aborted_callback=self_task.is_aborted)
     finally:
         logger.removeHandler(handler)
 

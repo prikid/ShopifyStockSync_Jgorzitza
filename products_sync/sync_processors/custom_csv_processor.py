@@ -1,17 +1,14 @@
-import pandas as pd
-
 from .base_products_sync_processor import BaseProductsSyncProcessor
 
 
 class CustomCSVProcessor(BaseProductsSyncProcessor):
     PROCESSOR_NAME = "Custom CSV"
 
-    def get_suppliers_df(self, *args, **kwargs) -> pd.DataFrame:
+    def __init__(self, params: dict):
+        super().__init__(params)
+
         from ..models import CustomCsvData
+        self.supplier_products_queryset = CustomCsvData.objects.filter(custom_csv_id=self.params['custom_csv_id'])
 
-        _id = kwargs['custom_csv_data_id']
-        data = CustomCsvData.objects.get(pk=_id).data
-        df = pd.DataFrame(data)
-        return df
-
-
+    def update_from_remote(self):
+        pass

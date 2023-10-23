@@ -1,5 +1,3 @@
-from typing import Type
-
 import pandas as pd
 
 from app import settings
@@ -7,7 +5,6 @@ from app.lib.fuse5_client import Fuse5Client
 from app.lib.fuse5_remote import Fuse5DB
 from products_sync import logger
 from products_sync.sync_processors.base_products_sync_processor import BaseProductsSyncProcessor
-from products_sync.sync_processors.shopify_products_updater import AbstractShopifyProductsUpdater
 
 
 class Fuse5Processor(BaseProductsSyncProcessor):
@@ -31,8 +28,11 @@ class Fuse5Processor(BaseProductsSyncProcessor):
         # "all_location_qty_onhand"
     ]
 
-    def __init__(self, params: dict, updater_class: Type["AbstractShopifyProductsUpdater"]):
-        super().__init__(params, updater_class)
+    def __init__(self, params: dict):
+        super().__init__(params)
+
+        from products_sync.models import Fuse5Products
+        self.supplier_products_queryset = Fuse5Products.objects
 
         assert 'API_KEY' in params, 'API_URL' in params
         self.fuse5data = Fuse5DB(

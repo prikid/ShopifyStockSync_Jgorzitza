@@ -8,6 +8,7 @@ from typing import Any
 
 import pandas as pd
 from django.db import connection, transaction
+from django.db.models import QuerySet
 from pyactiveresource.connection import ClientError
 import more_itertools as mit
 
@@ -26,15 +27,25 @@ class SHOPIFY_FIELDS(StrEnum):
 
 
 class AbstractShopifyProductsUpdater(ABC):
+    USE_CSV_FIELD_LOCATION = 'Use CSV field'
+
     @abstractmethod
-    def __init__(self, shopify_client: ShopifyClient, source_name: str,
-                 update_price: bool = True, update_inventory: bool = True):
-        self.update_inventory = update_inventory
-        self.update_price = update_price
-        self.source_name = source_name
-        self.shopify_client = shopify_client
-        self.store_variants_df: pd.DataFrame | None = None
+    def __init__(self,
+                 shopify_client: ShopifyClient,
+                 source_name: str,
+                 update_price: bool = True,
+                 update_inventory: bool = True,
+                 inventory_location: str = USE_CSV_FIELD_LOCATION,
+                 check_if_aborted: callable = lambda: False
+                 ):
+        self.shopify_client: ShopifyClient
+        self.source_name: str
+        self.update_price: bool
+        self.update_inventory: bool
+        self.inventory_location: str | None
+        self.store_variants_df: pd.DataFrame | None
         self.gid: int
+        self.check_if_aborted: callable
 
     @abstractmethod
     def process(self, dry: bool = True):
@@ -244,8 +255,15 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
     MatchedProductsTuple = namedtuple('MatchedProductsTuple', 'shopify_variant suppliers_product')
 
-    def __init__(self, shopify_client: ShopifyClient, source_name: str,
-                 update_price: bool = True, update_inventory: bool = True):
+    def __init__(self,
+                 shopify_client: ShopifyClient,
+                 source_name: str,
+                 supplier_products: QuerySet,
+                 update_price: bool = True,
+                 update_inventory: bool = True,
+                 inventory_location: str = AbstractShopifyProductsUpdater.USE_CSV_FIELD_LOCATION,
+                 check_if_aborted: callable = lambda: False
+                 ):
         """
         :param ShopifyClient shopify_client:
         :param supplier_products_df: Should contain all columns with names as in SHOPIFY_FIELDS
@@ -266,11 +284,18 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         self.shopify_client = shopify_client
         self.update_price = update_price
         self.update_inventory = update_inventory
+        self.inventory_location = None if inventory_location == self.USE_CSV_FIELD_LOCATION else inventory_location
         self._matched_products = []
         self._unmatched_variants = []
         self.gid = None
+        self.check_if_aborted = check_if_aborted
 
-        self.products_finder = ProductsFinder(logger, self.shopify_client.DEFAULT_LOCATION_NAME)
+        # TODO take location from the frontend
+        self.products_finder = ProductsFinder(
+            supplier_products,
+            logger,
+            default_location_name=self.inventory_location or self.shopify_client.DEFAULT_LOCATION_NAME
+        )
 
     def process(self, dry: bool = True):
         """
@@ -290,6 +315,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
             ProductsUpdateLog.delete_old(days=settings.PRODUCTS_SYNC_DELETE_LOGS_OLDER_DAYS)
 
+        # receiving product variants from shopify and iterate them checking for matches
         for idx, variant in enumerate(self.shopify_client.variants(), 1):
             logger.debug("%s - Processing variant_id=%s, barcode=%s, price=%s, qty=%s", idx, variant.id,
                          variant.barcode, variant.price, variant.inventory_quantity)
@@ -312,6 +338,10 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                     is_matched = True
                     if self.update_price:
                         supplier_product['price'] = round(float(supplier_product['price']), 2)
+
+                    if self.inventory_location:
+                        supplier_product['location_name'] = self.inventory_location
+
                     self._matched_products.append(self.MatchedProductsTuple(variant, supplier_product))
 
                     if len(self._matched_products) >= self.PER_PAGE:
@@ -345,7 +375,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
     @staticmethod
     def _supplier_products_as_str(supplier_products: list | None) -> str:
         if supplier_products:
-            return ', '.join(p['barcode'] or html.unescape(p['product_name'] or '') for p in supplier_products)
+            return ', '.join(p.get('barcode') or html.unescape(p.get('product_name') or '') for p in supplier_products)
 
         return ''
 
@@ -359,6 +389,9 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         log_items = []
         unmatched_for_review_items = []
         for shopify_variant, supplier_products in self._unmatched_variants:
+
+            if not self.check_if_aborted():
+                return
 
             log_items.append(
                 ProductsUpdateLog(
@@ -444,34 +477,38 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
         for loc_name in required_location_names:
             location = self.shopify_client.find_location_by_name(loc_name)
 
-            # TODO maybe it is more correct to not update quantity at all if location not found.
             if location is None:
-                # will use default location to update quantity
-                location = self.shopify_client.default_location
+                logger.warning(f'Inventory location `{loc_name}` not found in the Shopify store')
+            else:
+                required_locations[location.id] = loc_name
 
-            required_locations[location.id] = loc_name
+        if required_locations:
 
-        # requesting inventory levels from Shopify
-        inventory_levels_map = {
-            (item.inventory_item_id, required_locations[item.location_id]): item.available
-            for item in self.shopify_client.get_inventory_levels(required_inventory_items, required_locations)
-        }
+            # requesting inventory levels from Shopify
+            inventory_levels_map = {
+                (item.inventory_item_id, required_locations[item.location_id]): item.available
+                for item in self.shopify_client.get_inventory_levels(required_inventory_items, required_locations)
+            }
 
-        while self._matched_products:
-            shopify_variant, supplier_product = self._matched_products.pop()
-            inventory_level = inventory_levels_map.get((shopify_variant.inventory_item_id,
-                                                        supplier_product['location_name']))
+            while self._matched_products:
 
-            ShopifyVariantUpdater(
-                shopify_variant,
-                supplier_product,
-                shopify_inventory_level=inventory_level,
-                shopify_client=self.shopify_client,
-                gid=self.gid,
-                source_name=self.source_name,
-                update_price=self.update_price,
-                update_inventory=self.update_inventory
-            )(dry=dry)
+                if not self.check_if_aborted():
+                    return
+
+                shopify_variant, supplier_product = self._matched_products.pop()
+                inventory_level = inventory_levels_map.get((shopify_variant.inventory_item_id,
+                                                            supplier_product['location_name']))
+
+                ShopifyVariantUpdater(
+                    shopify_variant,
+                    supplier_product,
+                    shopify_inventory_level=inventory_level,
+                    shopify_client=self.shopify_client,
+                    gid=self.gid,
+                    source_name=self.source_name,
+                    update_price=self.update_price,
+                    update_inventory=self.update_inventory
+                )(dry=dry)
 
     def find_supplier_product(self, shopify_variant_barcode: str, shopify_variant: Variant) -> dict | None:
         shopify_variant_data = shopify_variant.to_dict() | {'barcode': shopify_variant_barcode}

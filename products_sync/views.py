@@ -1,4 +1,5 @@
 import re
+from io import StringIO
 
 import pandas as pd
 import redis
@@ -6,6 +7,7 @@ from celery.result import AsyncResult
 from django.http import HttpResponse
 from django.utils.text import slugify
 from django.utils.timezone import now
+from django.db import connection as db_connection
 from pyactiveresource import connection
 from rest_framework import mixins, viewsets, status
 from rest_framework.authentication import TokenAuthentication
@@ -16,10 +18,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_cte import With
+from django.db import transaction
 
+from app import settings
+from app.lib.shopify_client import ShopifyClient
 from app.settings import REDIS_URL
 from . import logger
-from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview
+from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview, CustomCsv
 from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer, UnmatchedProductsForReviewSerializer
 from .sync_processors.shopify_products_updater import ShopifyVariantUpdater
 from .tasks import sync_products
@@ -238,16 +243,25 @@ class UploadCustomCSVView(APIView):
             if (c := 'inventory_quantity') in df.columns:
                 df[c] = pd.to_numeric(df[c], downcast='integer')
 
-            rec = CustomCsvData(data=df.to_dict())
-            rec.save()
+            with transaction.atomic():
+                rec = CustomCsv()
+                rec.save()
+                df[CustomCsvData.custom_csv.field.column] = rec.id
+
+                csv_buffer = StringIO()
+                df.to_csv(csv_buffer, index=False, header=False)
+                csv_buffer.seek(0)
+
+                with db_connection.cursor() as cursor:
+                    cursor.copy_from(csv_buffer, CustomCsvData._meta.db_table, sep=',', columns=df.columns)
 
         except Exception as e:
             msg = "Unable to process CSV file"
             logger.error(msg + ' %s', e)
             return Response({'error': msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        CustomCsvData.delete_old()
-        return Response({'custom_csv_data_id': rec.pk}, status=status.HTTP_201_CREATED)
+        CustomCsv.delete_old()
+        return Response({'custom_csv_id': rec.pk}, status=status.HTTP_201_CREATED)
 
 
 class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -278,3 +292,21 @@ class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericV
             instance.delete()
 
         return Response(status=status.HTTP_200_OK)
+
+
+class ShopifyLocationsView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Return a list of all shopify locations.
+        """
+        shopify_client = ShopifyClient(
+            shop_name=settings.SHOPIFY_SHOP_NAME,
+            api_token=settings.SHOPIFY_API_TOKEN
+        )
+
+        locations = [loc.name for loc in shopify_client.get_locations()]
+
+        return Response(locations)

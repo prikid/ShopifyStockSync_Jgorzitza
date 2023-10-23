@@ -4,6 +4,7 @@ import sqlite3
 from abc import abstractmethod
 
 import pandas as pd
+from django.db.models import Model, QuerySet
 
 
 class BaseProductsFinder:
@@ -86,31 +87,27 @@ class BaseProductsFinder:
 
 class ProductsFinder(BaseProductsFinder):
 
-    def __init__(self, logger: logging.Logger = None, default_location_name: str = None):
+    def __init__(self, supplier_products: QuerySet | Model, logger: logging.Logger = None,
+                 default_location_name: str = None):
         super().__init__(logger, default_location_name)
 
-        from products_sync.models import Fuse5Products
-        self.table_name = Fuse5Products._meta.db_table
+        self.supplier_products = supplier_products if isinstance(supplier_products,
+                                                                 QuerySet) else supplier_products
+        self.table_name = self.supplier_products.model._meta.db_table
 
     def find_by_barcodes(self, barcodes: list) -> pd.DataFrame:
-        from products_sync.models import Fuse5Products
-
-        filtered_records = Fuse5Products.objects.filter(barcode__in=barcodes)
+        filtered_records = self.supplier_products.filter(barcode__in=barcodes)
         return self._get_found_df(filtered_records)
 
     def find_by_sku(self, sku: str) -> pd.DataFrame:
-        from products_sync.models import Fuse5Products
-
-        filtered_records = Fuse5Products.objects.filter(sku__iexact=sku)
+        filtered_records = self.supplier_products.filter(sku__iexact=sku)
         return self._get_found_df(filtered_records)
 
     def _get_found_df(self, filtered_records) -> pd.DataFrame:
-        from products_sync.models import Fuse5Products
-
         if filtered_records.exists():
             df = pd.DataFrame.from_records(filtered_records.values())
         else:
-            field_names = [field.name for field in Fuse5Products._meta.get_fields()]
+            field_names = [field.name for field in self.supplier_products.model._meta.get_fields()]
             df = pd.DataFrame(columns=field_names)
 
         df = self.fill_default_location(df)

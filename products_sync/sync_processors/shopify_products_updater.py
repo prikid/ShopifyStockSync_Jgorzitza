@@ -408,18 +408,17 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
                 )
             )
 
-            if supplier_products:
-                unmatched_for_review_items.append(
-                    UnmatchedProductsForReview(
-                        shopify_product_id=shopify_variant.product_id,
-                        shopify_variant_id=shopify_variant.id,
-                        shopify_sku=shopify_variant.sku,
-                        shopify_barcode=shopify_variant.barcode,
-                        shopify_variant_title=shopify_variant.title,
+            unmatched_for_review_items.append(
+                UnmatchedProductsForReview(
+                    shopify_product_id=shopify_variant.product_id,
+                    shopify_variant_id=shopify_variant.id,
+                    shopify_sku=shopify_variant.sku,
+                    shopify_barcode=shopify_variant.barcode,
+                    shopify_variant_title=shopify_variant.title,
 
-                        possible_fuse5_products=supplier_products
-                    )
+                    possible_fuse5_products=supplier_products or []
                 )
+            )
 
         ProductsUpdateLog.objects.bulk_create(log_items, batch_size=1000)
 

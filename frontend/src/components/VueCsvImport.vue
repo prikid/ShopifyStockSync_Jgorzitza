@@ -15,8 +15,17 @@
             </label>
           </slot>
         </div>
-        <div class="field is-grouped">
 
+        <b-field grouped>
+          <b-input type="url" v-model="csv_url" ref="csv_url" placeholder="Enter CSV file url" expanded></b-input>
+          <p class="control">
+            <b-button class="button" type="is-light" @click="loadFromUrl">Next</b-button>
+          </p>
+        </b-field>
+
+        <label>OR</label>
+
+        <b-field grouped class="mt-2">
           <div class="file has-name">
             <label class="file-label">
               <input ref="csv" type="file" @change.prevent="validFileMimeType" class="file-input" name="csv"/>
@@ -41,7 +50,7 @@
           <!--              {{ loadBtnText }}-->
           <!--            </button>-->
           <!--          </slot>-->
-        </div>
+        </b-field>
       </div>
       <div class="vue-csv-uploader-part-two">
         <div class="vue-csv-mapping box" v-if="sample">
@@ -223,6 +232,7 @@ export default {
     map: {},
     hasHeaders: true,
     csv: null,
+    csv_url: '',
     sample: null,
     isValidFileMimeType: false,
     fileSelected: false,
@@ -258,6 +268,7 @@ export default {
         });
       }
     },
+
     submit(dry = false) {
       const _this = this;
       try {
@@ -285,6 +296,7 @@ export default {
         _this.callback(this.form.csv, dry);
       }
     },
+
     buildMappedCsv() {
       const _this = this;
       this.fieldIsMandatoryText = '';
@@ -329,18 +341,39 @@ export default {
       if (this.isValidFileMimeType)
         this.load();
     },
+
     validateMimeType(type) {
       return this.fileMimeTypes.indexOf(type) > -1;
     },
+
+    showUnableToLoadFileToast(error) {
+      this.$buefy.toast.open({
+        duration: 5000,
+        message: `Unable to load the file`,
+        position: 'is-bottom',
+        type: 'is-danger'
+      });
+
+      console.log(error);
+    },
+
     load() {
+      this.readLocalFile(this.afterFileLoaded);
+    },
+
+    loadFromUrl() {
+      if (this.$refs.csv_url.checkHtml5Validity())
+        this.readFileByURL(this.afterFileLoaded);
+    },
+
+    afterFileLoaded(output) {
       const _this = this;
 
-      this.readFile((output) => {
-        _this.sample = get(Papa.parse(output, {preview: 2, skipEmptyLines: true}), "data");
-        _this.csv = get(Papa.parse(output, {skipEmptyLines: true}), "data");
-      });
+      _this.sample = get(Papa.parse(output, {preview: 2, skipEmptyLines: true}), "data");
+      _this.csv = get(Papa.parse(output, {skipEmptyLines: true}), "data");
     },
-    readFile(callback) {
+
+    readLocalFile(callback) {
       let file = this.$refs.csv.files[0];
 
       if (file) {
@@ -349,16 +382,31 @@ export default {
         reader.onload = function (evt) {
           callback(evt.target.result);
         };
-        reader.onerror = function () {
-        };
+        reader.onerror = function (error) {
+          this.showUnableToLoadFileToast(error)
+        }
       }
     },
+
+    readFileByURL(callback) {
+      axios
+          .get(this.csv_url, {'headers':{'Authorization':''}})
+          .then((response) => {
+            callback(response.data);
+          })
+          .catch((error) => {
+            this.showUnableToLoadFileToast(error)
+          });
+    },
+
     toggleHasHeaders() {
       this.hasHeaders = !this.hasHeaders;
     },
+
     makeId(id) {
       return `${id}${this._uid}`;
     },
+
   },
   watch: {
     map: {

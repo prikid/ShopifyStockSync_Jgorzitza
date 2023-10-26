@@ -24,8 +24,11 @@ from app import settings
 from app.lib.shopify_client import ShopifyClient
 from app.settings import REDIS_URL
 from . import logger
-from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview, CustomCsv
-from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer, UnmatchedProductsForReviewSerializer
+from .filters import ShowHiddenFilterBackend
+from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview, CustomCsv, \
+    HiddenProductsFromUnmatchedReview
+from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer, UnmatchedProductsForReviewSerializer, \
+    HiddenProductsFromUnmatchedReviewSerializer
 from .sync_processors.shopify_products_updater import ShopifyVariantUpdater
 from .tasks import sync_products
 
@@ -273,8 +276,9 @@ class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericV
 
     queryset = UnmatchedProductsForReview.objects.order_by('id').all()
 
-    def update(self, request, *args, **kwargs):
+    filter_backends = [ShowHiddenFilterBackend]
 
+    def update(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
             new_barcode = request.data['new_barcode']
@@ -292,6 +296,35 @@ class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericV
             instance.delete()
 
         return Response(status=status.HTTP_200_OK)
+
+
+class HiddenProductsFromUnmatchedReviewViewSet(mixins.CreateModelMixin, mixins.DestroyModelMixin,
+                                               viewsets.GenericViewSet):
+    serializer_class = HiddenProductsFromUnmatchedReviewSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    queryset = HiddenProductsFromUnmatchedReview.objects.all()
+
+    @action(methods=['post'], detail=False)
+    def destroy_by_product_ids(self, request, *args, **kwargs):
+        # Get the values of shopify_product_id and shopify_variant_id from the request
+        shopify_product_id = request.data.get('shopify_product_id')
+        shopify_variant_id = request.data.get('shopify_variant_id')
+
+        if shopify_product_id is None or shopify_variant_id is None:
+            return Response({'error': 'Both shopify_product_id and shopify_variant_id are required.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Get the object with the specified shopify_product_id and shopify_variant_id
+            instance = self.queryset.get(shopify_product_id=shopify_product_id, shopify_variant_id=shopify_variant_id)
+        except HiddenProductsFromUnmatchedReview.DoesNotExist:
+            return Response({'error': 'Object not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Perform the deletion
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShopifyLocationsView(APIView):

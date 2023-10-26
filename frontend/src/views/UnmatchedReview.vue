@@ -13,6 +13,11 @@
       </div>
       <div class="level-right">
         <div class="level-item">
+          <b-field>
+            <b-checkbox v-model="show_hidden" @input="loadData">Show removed</b-checkbox>
+          </b-field>
+        </div>
+        <div class="level-item">
           <b-field label="Per page">
             <b-select v-model="perPage" @input="onPageChange(1)">
               <option v-for="v in [50,100,200,500,1000]" :value="v" :key="v" v-text="v"/>
@@ -34,6 +39,8 @@
         @page-change="onPageChange"
 
         striped
+        :row-class="row => row.is_hidden ? 'hidden_row':''"
+        :has-detailed-visible="row => !row.is_hidden"
 
         detailed
         detail-key="id"
@@ -67,6 +74,11 @@
 
       <b-table-column field="shopify_variant_title" label="Variant title" v-slot="props">
         {{ props.row.shopify_variant_title }}
+      </b-table-column>
+
+      <b-table-column v-slot="props">
+        <b-button v-if="props.row.is_hidden" icon-left="trash-restore" @click="removeFromHidden(props.row)" title="Restore item"/>
+        <b-button v-else icon-left="trash" @click="addToHidden(props.row)" title="Hide row from the list"/>
       </b-table-column>
 
       <template #detail="props">
@@ -135,6 +147,8 @@ export default {
       openedDetailedRows: [],
       new_barcodes: {},
 
+      show_hidden: false,
+
       total: 0,
       page: 1,
       perPage: 50
@@ -183,8 +197,12 @@ export default {
     async loadData() {
       const params = [
         `page=${this.page}`,
-        `per_page=${this.perPage}`
+        `per_page=${this.perPage}`,
+        `show_hidden=${this.show_hidden}`
       ].join('&')
+
+      console.log(params);
+
       const response = await axios.get(`/api/unmatched_review?${params}`);
 
       this.total = response.data.count;
@@ -229,11 +247,55 @@ export default {
           throw new Error(response.statusText);
         }
       } catch (e) {
-        console.log(e);
-        const error_msg = e.response?.data?.error ?? "Something went wrong";
-        Toast.open({message: error_msg, type: 'is-danger', queue: false, duration: 5000});
+        this.showError(e)
       }
+    },
+
+    async addToHidden(row) {
+      try {
+        const response = await axios.post(`/api/unmatched_hidden/`, {
+          shopify_product_id: row.shopify_product_id,
+          shopify_variant_id: row.shopify_variant_id
+        });
+
+        if (response.status === 201)
+          this.loadData();
+        else
+          throw new Error(response.statusText);
+
+      } catch (e) {
+        this.showError(e);
+      }
+    },
+
+    async removeFromHidden(row) {
+      try {
+        const response = await axios.post(`/api/unmatched_hidden/destroy_by_product_ids/`, {
+          shopify_product_id: row.shopify_product_id,
+          shopify_variant_id: row.shopify_variant_id
+        });
+
+        if (response.status === 204)
+          this.loadData();
+        else
+          throw new Error(response.statusText);
+
+      } catch (e) {
+        this.showError(e);
+      }
+    },
+
+    showError(e) {
+      console.log(e);
+      const error_msg = e.response?.data?.error ?? "Something went wrong";
+      Toast.open({message: error_msg, type: 'is-danger', queue: false, duration: 5000});
     }
   },
 }
 </script>
+
+<style>
+tr.hidden_row {
+  background: #9b9b9b!important;
+}
+</style>

@@ -8,6 +8,7 @@ router = DefaultRouter()
 router.register('sources', views.StockDataSourceViewSet)
 router.register('products_sync_logs', views.ProductsUpdateLogViewSet, basename='products_sync_logs')
 router.register('unmatched_review', views.UnmatchedProductsForReviewViewSet, basename='unmatched_review')
+router.register('unmatched_hidden', views.HiddenProductsFromUnmatchedReviewViewSet, basename='unmatched_hidden')
 
 app_name = 'products_sync'
 

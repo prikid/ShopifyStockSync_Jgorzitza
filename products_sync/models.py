@@ -95,3 +95,17 @@ class UnmatchedProductsForReview(models.Model):
             models.Index(fields=["shopify_sku"]),
             models.Index(fields=["shopify_barcode"]),
         ]
+
+    def is_hidden(self):
+        return HiddenProductsFromUnmatchedReview.objects.filter(
+            shopify_product_id=self.shopify_product_id,
+            shopify_variant_id=self.shopify_variant_id
+        ).exists()
+
+
+class HiddenProductsFromUnmatchedReview(models.Model):
+    shopify_product_id = models.PositiveBigIntegerField()
+    shopify_variant_id = models.PositiveBigIntegerField()
+
+    class Meta:
+        unique_together = (('shopify_product_id', 'shopify_variant_id'),)

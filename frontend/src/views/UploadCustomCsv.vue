@@ -91,7 +91,7 @@ export default {
       this.$emit("input", response.data.custom_csv_id, dry, updatePrice, updateInventory, shopifyInventoryLocation);
     },
     on_failure(axios_error) {
-      this.showErrorToast(error, axios_error.response.data.error || 'Something went wrong')
+      this.showErrorToast(axios_error, axios_error.response.data.error || 'Something went wrong')
     },
     on_finally() {
       this.isLoading = false;

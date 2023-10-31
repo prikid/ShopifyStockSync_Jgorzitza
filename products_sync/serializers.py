@@ -9,8 +9,8 @@ from .models import StockDataSource, ProductsUpdateLog, UnmatchedProductsForRevi
 class StockDataSourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = StockDataSource
-        fields = ['id', 'name', 'active', 'processor']
-        read_only_fields = ['id', 'name']
+        fields = ['id', 'name', 'active', 'processor', 'params']
+        read_only_fields = ['id']
 
 
 class ProductsUpdateLogSerializer(serializers.ModelSerializer):

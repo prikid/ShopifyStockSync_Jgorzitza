@@ -15,7 +15,10 @@ app_name = 'products_sync'
 urlpatterns = [
     path('', include(router.urls)),
     re_path(r'^task/(?P<task_id>[\w-]+)/(?P<from_index>\d+)?', views.ManageCeleryTask.as_view()),
+
+    path('get_csv_proxy/', views.get_csv_proxy),
     path('upload-custom-csv/', UploadCustomCSVView.as_view(), name='upload_custom_csv'),
+
     path('shopify_locations/', ShopifyLocationsView.as_view(), name='shopify_locations')
 
 ]

@@ -70,12 +70,14 @@
 
 <script>
 import LoginForm from "@/components/LoginForm.vue";
+import showToastsMixin from "@/mixins/ShowToastsMixin.vue";
 
 export default {
   name: 'Home',
   components: {
     LoginForm
   },
+  mixins:[showToastsMixin],
 
   data() {
     return {
@@ -91,13 +93,7 @@ export default {
     },
 
     on_authentication_error(e) {
-      console.log(e);
-      this.$buefy.toast.open({
-        duration: 5000,
-        message: e.message,
-        position: 'is-bottom',
-        type: 'is-danger'
-      })
+       this.showErrorToast(e,e.message);
     },
 
     logout() {

@@ -22,6 +22,7 @@
     <b-table
         :data="sources"
         :loading="loading"
+        :row-class="row => is_predefined_source(row) ? 'predefined_source_row':''"
     >
       <b-table-column field="name" label="Name" v-slot="props">
         {{ props.row.name }}
@@ -29,7 +30,7 @@
       </b-table-column>
 
       <b-table-column field="active" label="Run hourly" v-slot="props" centered>
-        <b-button v-if="props.row.processor!=='CustomCSVProcessor'"
+        <b-button v-if="!is_predefined_custom_csv_source_row(props.row)"
                   icon-left="check"
                   icon-pack="fas"
                   :type="props.row.active ? 'is-success' : 'is-dark'"
@@ -41,19 +42,29 @@
       </b-table-column>
 
       <b-table-column v-slot="props">
-        <template v-if="props.row.processor==='CustomCSVProcessor'">
+
+        <template v-if="is_predefined_custom_csv_source_row(props.row)">
           <upload-custom-csv
               :shopifyLocations="shopifyLocations"
               @input="(csv_id, dry, updatePrice, updateInventory, shopifyInventoryLocation) =>
               customCsvSync(props.row, dry, csv_id, updatePrice, updateInventory, shopifyInventoryLocation)"
+              @newSourceCreated="getDataSources"
           ></upload-custom-csv>
         </template>
 
-        <div v-else class="buttons">
+        <template v-else-if="!is_predefined_source(props.row)">
+          {{ props.row.params['csv_url'] }}
+          <b-button @click="deleteSource(props.row)" class="is-pulled-right" outlined icon-left="trash"
+                    type="is-danger"/>
+        </template>
+
+        <div v-if="!is_predefined_custom_csv_source_row(props.row)" class="buttons is-pulled-right mx-2">
           <b-button @click="syncNow(props.row, true)" label="Dry run" type="is-secondary"/>
           <b-button @click="syncNow(props.row, false)" label="Sync now" type="is-primary"/>
         </div>
       </b-table-column>
+
+
     </b-table>
   </div>
 </template>
@@ -63,13 +74,14 @@ import axios, {AxiosError} from 'axios'
 import LogViewer from "@femessage/log-viewer/src/log-viewer.vue";
 import DownloadFileMixin from "@/mixins/DownloadFileMixin.vue";
 import UploadCustomCsv from "@/views/UploadCustomCsv.vue";
+import showToastsMixin from "@/mixins/ShowToastsMixin.vue";
 
 export default {
   // TODO pagination
 
   name: 'Dashboard',
   components: {UploadCustomCsv, LogViewer},
-  mixins: [DownloadFileMixin],
+  mixins: [DownloadFileMixin, showToastsMixin],
 
   data() {
     return {
@@ -100,6 +112,25 @@ export default {
   },
 
   methods: {
+    is_predefined_custom_csv_source_row(row) {
+      return row.processor === 'CustomCSVProcessor' && row.name === 'Custom CSV';
+    },
+
+    is_predefined_fuse5_source_row(row) {
+      return row.processor === 'Fuse5Processor';
+    },
+
+    is_predefined_source(row) {
+      return this.is_predefined_custom_csv_source_row(row) || this.is_predefined_fuse5_source_row(row);
+    },
+
+    deleteSource(row) {
+      axios.delete(`api/sources/${row.id}`)
+          .then(() => this.getDataSources())
+          .catch(e => {
+            this.showErrorToast(e, e.message)
+          })
+    },
 
     customCsvSync(row, dry, custom_csv_id, updatePrice, updateInventory, shopifyInventoryLocation) {
       this.syncNow(row, dry, {
@@ -237,3 +268,9 @@ export default {
 }
 
 </script>
+
+<style>
+.predefined_source_row {
+  background-color: #fff8ef;
+}
+</style>

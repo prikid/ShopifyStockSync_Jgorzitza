@@ -1,34 +1,32 @@
 import re
-from io import StringIO
 
 import pandas as pd
 import redis
+import requests
 from celery.result import AsyncResult
 from django.http import HttpResponse
 from django.utils.text import slugify
 from django.utils.timezone import now
-from django.db import connection as db_connection
 from pyactiveresource import connection
 from rest_framework import mixins, viewsets, status
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_cte import With
-from django.db import transaction
 
 from app import settings
 from app.lib.shopify_client import ShopifyClient
 from app.settings import REDIS_URL
 from . import logger
 from .filters import ShowHiddenFilterBackend
-from .models import StockDataSource, ProductsUpdateLog, CustomCsvData, UnmatchedProductsForReview, CustomCsv, \
-    HiddenProductsFromUnmatchedReview
+from .models import StockDataSource, ProductsUpdateLog, UnmatchedProductsForReview, HiddenProductsFromUnmatchedReview
 from .serializers import StockDataSourceSerializer, ProductsUpdateLogSerializer, UnmatchedProductsForReviewSerializer, \
     HiddenProductsFromUnmatchedReviewSerializer
+from .sync_processors import CustomCSVProcessor
 from .sync_processors.shopify_products_updater import ShopifyVariantUpdater
 from .tasks import sync_products
 
@@ -51,7 +49,7 @@ class ListPageNumberPagination(PageNumberPagination):
     max_page_size = 1000
 
 
-class StockDataSourceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class StockDataSourceViewSet(viewsets.ModelViewSet):
     serializer_class = StockDataSourceSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -227,6 +225,19 @@ class ProductsUpdateLogViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return response
 
 
+@api_view(['POST'])
+def get_csv_proxy(request):
+    # https://prikidtest.s3.amazonaws.com/EDMONTONWHinve_small2.csv
+
+    csv_url = request.data.get('csv_url')
+    response = requests.get(csv_url)
+
+    if response.status_code == 200:
+        return Response(response.content)
+    else:
+        return Response({'error': 'Failed to fetch CSV data', 'content': response.content}, status=response.status_code)
+
+
 class UploadCustomCSVView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -234,37 +245,14 @@ class UploadCustomCSVView(APIView):
     def post(self, request):
         # the frontend converts a csv file to a json object, and send it to backend as data, not as a file
         try:
-            df = pd.DataFrame(request.data['csv'])
-
-            for c in ('barcode', 'sku', 'location_name'):
-                if c in df.columns:
-                    df[c] = df[c].str.strip()
-
-            if (c := 'price') in df.columns:
-                df[c] = pd.to_numeric(df[c], downcast='float')
-
-            if (c := 'inventory_quantity') in df.columns:
-                df[c] = pd.to_numeric(df[c], downcast='integer')
-
-            with transaction.atomic():
-                rec = CustomCsv()
-                rec.save()
-                df[CustomCsvData.custom_csv.field.column] = rec.id
-
-                csv_buffer = StringIO()
-                df.to_csv(csv_buffer, index=False, header=False)
-                csv_buffer.seek(0)
-
-                with db_connection.cursor() as cursor:
-                    cursor.copy_from(csv_buffer, CustomCsvData._meta.db_table, sep=',', columns=df.columns)
-
+            df = pd.DataFrame(request.data['csv'], dtype=str)
+            custom_csv_id = CustomCSVProcessor.saveCSV2DB(df)
         except Exception as e:
             msg = "Unable to process CSV file"
             logger.error(msg + ' %s', e)
             return Response({'error': msg}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        CustomCsv.delete_old()
-        return Response({'custom_csv_id': rec.pk}, status=status.HTTP_201_CREATED)
+        return Response({'custom_csv_id': custom_csv_id}, status=status.HTTP_201_CREATED)
 
 
 class UnmatchedProductsForReviewViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

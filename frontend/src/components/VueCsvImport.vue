@@ -1,7 +1,9 @@
 <template>
   <div class="vue-csv-uploader">
+    <b-loading :is-full-page="true" v-model="isLoading" :can-cancel="false"></b-loading>
+
     <div class="form">
-      <div class="vue-csv-uploader-part-one">
+      <div class="vue-csv-uploader-part-one" v-if="!sample">
         <div class="form-check form-group csv-import-checkbox" v-if="headers === null">
           <slot name="hasHeaders" :headers="hasHeaders" :toggle="toggleHasHeaders">
             <input
@@ -19,14 +21,14 @@
         <b-field grouped>
           <b-input type="url" v-model="csv_url" ref="csv_url" placeholder="Enter CSV file url" expanded></b-input>
           <p class="control">
-            <b-button class="button" type="is-light" @click="loadFromUrl">Next</b-button>
+            <b-button :disabled="!is_csv_url_valid" class="button" @click="loadFromUrl">Next</b-button>
           </p>
         </b-field>
 
         <label>OR</label>
 
         <b-field grouped class="mt-2">
-          <div class="file has-name">
+          <div class="file has-name ">
             <label class="file-label">
               <input ref="csv" type="file" @change.prevent="validFileMimeType" class="file-input" name="csv"/>
               <span class="file-cta">
@@ -54,6 +56,7 @@
       </div>
       <div class="vue-csv-uploader-part-two">
         <div class="vue-csv-mapping box" v-if="sample">
+          <b-button @click="resetFileSelector" icon-left="xmark" type="is-white" class="is-pulled-right"/>
           <h2 class="my-2 subtitle">Fields mapping</h2>
           <table :class="tableClass">
             <slot name="thead">
@@ -95,9 +98,11 @@
           <div class="form-group mt-2" v-if="url">
             <slot name="submit" :submit="submit">
               <div class="buttons">
-                <input type="submit" :class="submitBtnClass" @click.prevent="submit(false)" :value="submitBtnText"/>
                 <input type="submit" :class="submitDryBtnClass" @click.prevent="submit(true)"
                        :value="submitDryBtnText"/>
+                <input type="submit" :class="submitBtnClass" @click.prevent="submit(false)" :value="submitBtnText"/>
+                <b-button :disabled="!is_csv_url_valid" @click="addToScheduler" type="is-light">Add to scheduler
+                </b-button>
               </div>
             </slot>
           </div>
@@ -225,6 +230,7 @@ export default {
   },
 
   data: () => ({
+    isLoading: false,
     form: {
       csv: null,
     },
@@ -242,13 +248,55 @@ export default {
     shopifyInventoryLocationIdx: 0,
 
     fieldIsMandatoryText: ''
+
   }),
 
   created() {
     this.initializeFromProps();
   },
 
+
   methods: {
+    resetFileSelector() {
+      this.sample = null;
+      this.csv_url = ''
+      this.csv = null;
+      this.isValidFileMimeType = false;
+      this.fileSelected = false;
+      this.form.csv = null;
+
+    },
+
+    addToScheduler() {
+      let fields_map = {}
+
+      try {
+        forEach(this.map, (column, field) => {
+          if (this.mandatoryFields.includes(field) && column === null)
+            throw new Error(`The field ${field} is mandatory`);
+
+          fields_map[field] = this.csv[0][column]
+        });
+
+        this.verify_input_fields(fields_map);
+
+      } catch (e) {
+        this.fieldIsMandatoryText = e.message;
+        return false;
+      }
+
+
+      this.$emit(
+          'addToSchedulerEvent',
+          {
+            csv_url: this.csv_url,
+            update_price: this.updatePrice,
+            update_inventory: this.updateInventory,
+            shopify_inventory_location: this.shopifyLocations[this.shopifyInventoryLocationIdx],
+            fields_map: fields_map,
+          })
+    },
+
     initializeFromProps() {
       this.hasHeaders = this.headers;
 
@@ -280,6 +328,7 @@ export default {
 
       this.$emit("input", this.form.csv, dry, this.updatePrice, this.updateInventory);
 
+
       if (this.url) {
         axios
             .post(this.url, this.form, {timeout: 60000})
@@ -290,6 +339,7 @@ export default {
               _this.catch(response, dry);
             })
             .finally((response) => {
+              this.resetFileSelector();
               _this.finally(response, dry);
             });
       } else {
@@ -313,18 +363,23 @@ export default {
           set(newRow, field, get(row, column));
         });
 
-        if (!this.updatePrice && !this.updateInventory)
-          throw new Error(`Nothing to do. Check at least one option: update price or update inventory`);
-
-        if (this.updatePrice && isUndefined(newRow.price))
-          throw new Error(`The price field is required for prices updating`);
-
-        if (this.updateInventory && isUndefined(newRow.inventory_quantity))
-          throw new Error(`The inventory_quantity field is required for prices updating`);
+        this.verify_input_fields(newRow);
 
         return newRow;
       });
     },
+
+    verify_input_fields(item) {
+      if (!this.updatePrice && !this.updateInventory)
+        throw new Error(`Check at least one option: update price or update inventory`);
+
+      if (this.updatePrice && isUndefined(item.price))
+        throw new Error(`The price field is required for prices updating`);
+
+      if (this.updateInventory && isUndefined(item.inventory_quantity))
+        throw new Error(`The inventory_quantity field is required for prices updating`);
+    },
+
 
     validFileMimeType() {
       let file = this.$refs.csv.files[0];
@@ -347,23 +402,17 @@ export default {
     },
 
     showUnableToLoadFileToast(error) {
-      this.$buefy.toast.open({
-        duration: 5000,
-        message: `Unable to load the file`,
-        position: 'is-bottom',
-        type: 'is-danger'
-      });
-
-      console.log(error);
+      this.showErrorToast(error, `Unable to load the file`);
     },
 
     load() {
       this.readLocalFile(this.afterFileLoaded);
     },
 
-    loadFromUrl() {
+    loadFromUrl(row) {
       if (this.$refs.csv_url.checkHtml5Validity())
         this.readFileByURL(this.afterFileLoaded);
+
     },
 
     afterFileLoaded(output) {
@@ -389,13 +438,18 @@ export default {
     },
 
     readFileByURL(callback) {
+      this.isLoading = true;
+
       axios
-          .get(this.csv_url, {'headers':{'Authorization':''}})
+          .post('api/get_csv_proxy/', {csv_url: this.csv_url})
           .then((response) => {
             callback(response.data);
           })
           .catch((error) => {
             this.showUnableToLoadFileToast(error)
+          })
+          .finally(() => {
+            this.isLoading = false;
           });
     },
 
@@ -451,6 +505,11 @@ export default {
     }
   },
   computed: {
+    is_csv_url_valid() {
+      const urlRegex = /^\s*(http|https|ftp):\/\/[^\s/$.?#].[^\s]*\.(csv|txt|tsv)\??.*$/i;
+      return urlRegex.test(this.csv_url);
+    },
+
     filename() {
       try {
         return this.$refs.csv.files[0].name;

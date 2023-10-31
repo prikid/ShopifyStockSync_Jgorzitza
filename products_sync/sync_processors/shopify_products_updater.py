@@ -336,7 +336,7 @@ class ShopifyProductsUpdater(AbstractShopifyProductsUpdater):
 
                 if supplier_product:
                     is_matched = True
-                    if self.update_price:
+                    if self.update_price and supplier_product['price'] is not None:
                         supplier_product['price'] = round(float(supplier_product['price']), 2)
 
                     if self.inventory_location:

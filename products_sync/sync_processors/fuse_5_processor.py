@@ -1,4 +1,5 @@
 import pandas as pd
+from django.db.models import QuerySet
 
 from app import settings
 from app.lib.fuse5_client import Fuse5Client
@@ -31,14 +32,16 @@ class Fuse5Processor(BaseProductsSyncProcessor):
     def __init__(self, params: dict):
         super().__init__(params)
 
-        from products_sync.models import Fuse5Products
-        self.supplier_products_queryset = Fuse5Products.objects
-
         assert 'API_KEY' in params, 'API_URL' in params
         self.fuse5data = Fuse5DB(
             fuse5_client=Fuse5Client(params['API_KEY'], params['API_URL']),
             logger=logger
         )
+
+    @property
+    def supplier_products_queryset(self) -> QuerySet | None:
+        from products_sync.models import Fuse5Products
+        return Fuse5Products.objects
 
     def update_from_remote(self):
         self.fuse5data.update_from_remote()

@@ -34,12 +34,14 @@ class AbstractProductsSyncProcessor(ABC):
 
 class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
     PROCESSOR_NAME = ''
-    supplier_products_queryset: QuerySet
 
     def __init__(self, params: dict):
         super().__init__(params)
         self.updater_class: Type["AbstractShopifyProductsUpdater"] = ShopifyProductsUpdater
 
+    @property
+    def supplier_products_queryset(self) -> QuerySet | None:
+        return None
     @cached_property
     def source_name(self):
         from products_sync.models import StockDataSource

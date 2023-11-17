@@ -1,5 +1,6 @@
 import html
 import logging
+import re
 import sqlite3
 from abc import abstractmethod
 
@@ -100,7 +101,12 @@ class ProductsFinder(BaseProductsFinder):
         return self._get_found_df(filtered_records)
 
     def find_by_sku(self, sku: str) -> pd.DataFrame:
-        filtered_records = self.supplier_products.filter(sku__iexact=sku)
+        # filtered_records = self.supplier_products.filter(sku__iexact=sku)
+
+        regex_pattern = re.sub(r'(.)', '\g<1>[-_ ]*', re.sub(r"[-_ ]", '', sku))
+        regex_pattern = f"^{regex_pattern}$"
+        filtered_records = self.supplier_products.filter(sku__iregex=regex_pattern)
+
         return self._get_found_df(filtered_records)
 
     def _get_found_df(self, filtered_records) -> pd.DataFrame:

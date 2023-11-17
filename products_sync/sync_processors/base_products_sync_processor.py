@@ -42,6 +42,7 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
     @property
     def supplier_products_queryset(self) -> QuerySet | None:
         return None
+
     @cached_property
     def source_name(self):
         from products_sync.models import StockDataSource
@@ -73,7 +74,8 @@ class BaseProductsSyncProcessor(AbstractProductsSyncProcessor):
                 return False
             return True
 
-        self.update_from_remote()
+        if settings.FUSE5_UPDATE_CSV_FROM_REMOTE:
+            self.update_from_remote()
 
         if not check_if_aborted():
             return None

@@ -3,6 +3,7 @@ import tempfile
 from abc import abstractmethod
 from datetime import datetime
 from enum import Enum
+from html import unescape
 from pathlib import Path
 from typing import BinaryIO
 
@@ -168,6 +169,16 @@ class Fuse5DB(Fuse5RemoteBase):
 
         table_name = Fuse5Products._meta.db_table
         with connection.cursor() as cursor:
+            # read the csv file with pandas
+            df = pd.read_csv(csv_file_path)
+
+            # iterate over each column and apply html.unescape to convert entities like &amp; to text
+            for col in df.columns:
+                df[col] = df[col].apply(lambda x: unescape(x) if isinstance(x, str) else x)
+
+            # overwrite the csv file with cleaned data
+            df.to_csv(csv_file_path, index=False, header=True)
+
             copy_sql = """
                        COPY {table_name}({columns})
                        FROM stdin WITH CSV HEADER

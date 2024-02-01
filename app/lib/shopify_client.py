@@ -7,7 +7,6 @@ import logging
 import pandas as pd
 from decouple import config
 from pyactiveresource.connection import ClientError, ResourceNotFound
-
 import shopify
 from shopify import ShopifyResource, Variant, Location, Limits
 from shopify.collection import PaginatedIterator
@@ -27,7 +26,7 @@ class ShopifyClient:
 
         self.page_size = page_size
         shop_url = f"{shop_name}.myshopify.com"
-        api_version = '2023-04'
+        api_version = '2024-01'
         session = shopify.Session(shop_url, api_version, api_token)
         shopify.ShopifyResource.activate_session(session)
         self.client = shopify
